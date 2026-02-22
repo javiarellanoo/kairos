@@ -1,0 +1,8 @@
+/.env
+/.project
+/.pydevproject
+/.settings
+*.pyc
+venv/*
+htmlcov/*
+.coverage
