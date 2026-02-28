@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos Relacional
+  db:
+    image: postgres:15-alpine
+    container_name: tfg_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: tfg_user
+      POSTGRES_PASSWORD: tfg_password
+      POSTGRES_DB: tfg_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Interfaz Web para la Base de Datos
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: tfg_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@tfg.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+  # 3. Servidor XMPP para los Agentes SPADE
+  openfire:
+    image: sameersbn/openfire:latest
+    container_name: tfg_openfire
+    restart: always
+    ports:
+      - "9090:9090"   # Consola de Administración Web (HTTP)
+      - "5222:5222"   # Puerto estándar de mensajería XMPP (El que usa SPADE)
+      - "7777:7777"   # File transfer proxy
+    volumes:
+      - openfire_data:/var/lib/openfire
+    
+volumes:
+  postgres_data:
+  openfire_data:
