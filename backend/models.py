@@ -73,6 +73,7 @@ class Paciente(Usuario):
     dni = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine), unique=True, index=True, nullable=False)
     birth_date = Column(Date, nullable=False)
     tarjeta_sanitaria = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine), unique=True)
+    medico_de_cabecera_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id"))
     preferencias_horarias = Column(JSONB)
 
     __mapper_args__ = {

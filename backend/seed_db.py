@@ -45,9 +45,36 @@ def load_data():
     db.commit()
     print("✅ Especialidades cargadas.")
 
-    # 2. PACIENTES
+    # 3. DOCTORES
+    doctor_id_by_email = {}
+    doctors_by_specialty = {}
+    doctor_specialty_by_id = {}
+    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv')
+    for _, row in df_doc.iterrows():
+        agenda_json = json.loads(row['agenda'].replace('""', '"')) if isinstance(row['agenda'], str) else row['agenda']
+        did = uuid.uuid4()
+        db.add(Doctor(
+            id=did,
+            email=row['email'],
+            name=row['name'],
+            password=get_password_hash(row['password']),
+            phone=str(row['phone']),
+            duracion_cita=int(row['duracion_cita']),
+            especialidad=row['especialidad'],
+            agenda=agenda_json,
+            rol="doctor",
+        ))
+        doctor_id_by_email[row['email']] = did
+        spec_norm = row['especialidad'].strip().lower()
+        doctors_by_specialty.setdefault(spec_norm, []).append(did)
+        doctor_specialty_by_id[did] = spec_norm
+    db.commit()
+    print("✅ Doctores cargados.")
+
+ # 2. PACIENTES
     paciente_id_by_dni = {}
     paciente_id_by_email = {}
+    paciente_birthdate = {}
     df_pat = pd.read_csv(DATA_DIR / 'patients.csv')
     for _, row in df_pat.iterrows():
         # Los CSV suelen tener comillas extra en el JSON, las limpiamos si es necesario
@@ -67,30 +94,9 @@ def load_data():
         ))
         paciente_id_by_dni[row['DNI']] = pid
         paciente_id_by_email[row['email']] = pid
+        paciente_birthdate[pid] = datetime.strptime(row['birth_date'], '%Y-%m-%d').date()
     db.commit()
     print("✅ Pacientes cargados.")
-
-    # 3. DOCTORES
-    doctor_id_by_email = {}
-    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv')
-    for _, row in df_doc.iterrows():
-        agenda_json = json.loads(row['agenda'].replace('""', '"')) if isinstance(row['agenda'], str) else row['agenda']
-        did = uuid.uuid4()
-        db.add(Doctor(
-            id=did,
-            email=row['email'],
-            name=row['name'],
-            password=get_password_hash(row['password']),
-            phone=str(row['phone']),
-            duracion_cita=int(row['duracion_cita']),
-            especialidad=row['especialidad'],
-            agenda=agenda_json,
-            rol="doctor",
-        ))
-        doctor_id_by_email[row['email']] = did
-    db.commit()
-    print("✅ Doctores cargados.")
-
     # 4. VOLANTES
     df_vol = pd.read_csv(DATA_DIR / 'volantes.csv')
     for _, row in df_vol.iterrows():
@@ -117,6 +123,19 @@ def load_data():
 
     # 5. CITAS
     df_cit = pd.read_csv(DATA_DIR / 'citas.csv')
+    primary_doctor_candidate = {}
+
+    def register_primary_doctor(paciente_id, doctor_id, fecha_hora_str):
+        """Track earliest confirmed Medicina General/Pediatría visit per patient to set PCP."""
+        try:
+            fecha_dt = datetime.strptime(str(fecha_hora_str), '%Y-%m-%d %H:%M')
+        except ValueError:
+            return
+
+        current = primary_doctor_candidate.get(paciente_id)
+        if current is None or fecha_dt < current["fecha"]:
+            primary_doctor_candidate[paciente_id] = {"doctor": doctor_id, "fecha": fecha_dt}
+
     for _, row in df_cit.iterrows():
         id_volante_val = None
         if pd.notna(row['id_volante']) and row['id_volante'] != '':
@@ -131,6 +150,14 @@ def load_data():
                 estado_cita = EstadoCita(estado_cita_norm)
             except ValueError:
                 estado_cita = EstadoCita.LISTA_ESPERA
+
+        especialidad_norm = str(row['especialidad']).strip().lower()
+        if estado_cita == EstadoCita.CONFIRMADA and especialidad_norm in {"medicina general", "pediatría", "pediatria"}:
+            register_primary_doctor(
+                paciente_id_by_dni[row['paciente_dni']],
+                doctor_id_by_email[row['medico']],
+                row['fecha_hora'],
+            )
             
         db.add(Cita(
                 paciente_id=paciente_id_by_dni[row['paciente_dni']],
@@ -144,6 +171,51 @@ def load_data():
         ))
     db.commit()
     print("✅ Citas cargadas.")
+
+    general_doctors = doctors_by_specialty.get("medicina general", [])
+    peds_doctors = doctors_by_specialty.get("pediatría", []) + doctors_by_specialty.get("pediatria", [])
+    any_doctor = list(doctor_id_by_email.values())
+
+    def pick_doctor_for_age(age_years: int):
+        if age_years >= 18:
+            if general_doctors:
+                return general_doctors[0]
+            if peds_doctors:
+                return peds_doctors[0]
+        else:
+            if peds_doctors:
+                return peds_doctors[0]
+            if general_doctors:
+                return general_doctors[0]
+        return any_doctor[0] if any_doctor else None
+
+    today = datetime.utcnow().date()
+
+    # Asignar médico de cabecera desde visitas relevantes, respetando edad
+    for paciente_id, info in primary_doctor_candidate.items():
+        birth = paciente_birthdate.get(paciente_id)
+        age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day)) if birth else 30
+
+        chosen = info["doctor"]
+        spec = doctor_specialty_by_id.get(chosen, "")
+        if age >= 18 and spec != "medicina general":
+            chosen = pick_doctor_for_age(age)
+        elif age < 18 and spec not in {"pediatría", "pediatria"}:
+            chosen = pick_doctor_for_age(age)
+
+        if chosen:
+            db.query(Paciente).filter(Paciente.id == paciente_id).update({"medico_de_cabecera_id": chosen})
+
+    # Asignar médico de cabecera restante por edad
+    pacientes_sin_medico = db.query(Paciente).filter(Paciente.medico_de_cabecera_id.is_(None)).all()
+    for paciente in pacientes_sin_medico:
+        age = today.year - paciente.birth_date.year - ((today.month, today.day) < (paciente.birth_date.month, paciente.birth_date.day))
+        chosen = pick_doctor_for_age(age)
+        if chosen:
+            paciente.medico_de_cabecera_id = chosen
+
+    db.commit()
+    print("✅ Médicos de cabecera asignados.")
 
     db.close()
     print("🎉 SEED COMPLETADO CON ÉXITO.")

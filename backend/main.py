@@ -1,17 +1,47 @@
+import datetime
+from typing import Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from database import engine, Base
+from database import SessionLocal, engine, Base
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Usuario
+from models import Cita, Paciente, Usuario, Volante, Doctor
 from security import verify_password, create_access_token
-from dependencies import get_current_user
+from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente
+from pydantic import BaseModel
+from agents import PatientAgent, DoctorAgent
+from schemas import SolicitudCita, MotivoPrimaria
 
+medicos_activos = {}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Levantando el servidor y despertando agentes...")
+    db = SessionLocal()
+    try:
+        doctores = db.query(Doctor).all()
+        for doctor in doctores:
+            jid_doctor = f"doctor_{doctor.email.split('@')[0].lower()}@localhost"
+            agente_doctor = DoctorAgent(jid_doctor, "password123")
+            await agente_doctor.start(auto_register=True)
+            medicos_activos[jid_doctor] = agente_doctor
+            print(f"Agente doctor {jid_doctor} iniciado al arrancar el servidor.")
+    except Exception as e:
+        print(f"Error al iniciar agentes de doctor: {e}")
+    finally:
+        db.close()
+    yield
+
+    for jid, agente in medicos_activos.items():
+        await agente.stop()
+        print(f"Agente doctor {jid} detenido al apagar el servidor.")
+    print("Servidor apagado y agentes detenidos.")
 # Esto crea todas las tablas en Postgres si no existen
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="API TFG - Sistema Multi-Agente Médico")
+app = FastAPI(title="API TFG - Sistema Multi-Agente Médico", lifespan=lifespan)
 
 @app.get("/")
 def read_root():
@@ -47,3 +77,111 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer",
         "rol": usuario.rol
     }
+
+@app.post("/api/nueva-cita")
+async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    
+    ESPECIALIDADES_PRIMARIAS = ["Medicina General", "Pediatría"]
+    motivo_final = ""
+    medicos_jids = []
+    if solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
+        motivo_final = solicitud.motivo.value if solicitud.motivo else "Consulta general"
+        medico = db.query(Doctor).filter(Doctor.id == db.query(Paciente).filter(Paciente.id == current_user.id).first().medico_de_cabecera_id).first()
+        medicos_jids.append(f"doctor_{medico.email.split('@')[0].lower()}@localhost")
+
+    prioridad_subasta = 1.0
+    if solicitud.id_volante:
+        volante = db.query(Volante).filter(Volante.id == solicitud.id_volante).first()
+        if volante:
+            prioridad_subasta = volante.prioridad_peso
+            motivo_final = volante.motivo_texto or motivo_final
+            medicos_especialidad = db.query(Doctor).filter(Doctor.especialidad == solicitud.especialidad).all()
+            for medico in medicos_especialidad:
+                medicos_jids.append(f"doctor_{medico.email.split('@')[0].lower()}@localhost")
+    
+    jid_paciente = f"patient_{current_user.email.split('@')[0].lower()}@localhost"
+    agente_paciente = PatientAgent(jid_paciente, "password123")
+    preferencias_horarias = db.query(Paciente).filter(Paciente.id == current_user.id).first().preferencias_horarias
+    agente_paciente.datos_busqueda = {
+        "especialidad": solicitud.especialidad,
+        "paciente_id": str(current_user.id),
+        "preferencias_horarias": preferencias_horarias,
+        "prioridad_subasta": prioridad_subasta,
+        "lista_espera": solicitud.lista_espera,
+        "medicos_jids": medicos_jids
+
+    }
+
+    try:
+        await agente_paciente.start(auto_register=True)
+        print(f"Agente paciente {jid_paciente} iniciado para nueva cita.")
+        resultado_cita = await agente_paciente.resultado_cita
+
+    finally:
+        await agente_paciente.stop()
+        print(f"Agente paciente {jid_paciente} detenido después de procesar la cita.")
+    
+    if resultado_cita:
+        medico_id = db.query(Doctor).filter(Doctor.email.like(f"{resultado_cita['doctor_id']}@%")).first().id if resultado_cita["doctor_id"] else None
+        nueva_cita = Cita(
+            paciente_id=current_user.id,
+            medico_id=medico_id,
+            fecha_hora=resultado_cita["fecha_hora"],
+            especialidad=solicitud.especialidad,
+            motivo=motivo_final,
+            prioridad_peso=prioridad_subasta,
+            id_volante=solicitud.id_volante,
+            estado=resultado_cita["estado"]
+
+        )
+        db.add(nueva_cita)
+        db.commit()
+        db.refresh(nueva_cita)
+        return nueva_cita
+    else:
+        raise HTTPException(status_code=404, detail="No se pudo encontrar una cita disponible para los criterios proporcionados.")
+    
+
+@app.patch("/api/cancelar-cita/{cita_id}")
+def cancelar_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.paciente_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta cita")
+    
+    cita.estado = "cancelada"
+    db.commit()
+    return {"mensaje": "Cita cancelada exitosamente"}
+
+@app.get("/api/mis-citas")
+def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    citas = db.query(Cita).filter(Cita.paciente_id == current_user.id).all()
+    return citas
+
+@app.get("/api/agenda-doctor")
+async def agenda_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.email.like(f"{current_user.email}%")).first()
+    citas = db.query(Cita).filter(Cita.medico_id == doctor.id, Cita.estado != "cancelada").all()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    return citas;
+
+@app.get("/api/agenda-hoy")
+async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.email.like(f"{current_user.email}%")).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    
+    hoy = datetime.now().date()
+    citas_hoy = db.query(Cita).filter(
+        Cita.medico_id == doctor.id,
+        Cita.fecha_hora >= datetime.combine(hoy, datetime.min.time()),
+        Cita.fecha_hora <= datetime.combine(hoy, datetime.max.time()),
+        Cita.estado != "cancelada"
+    ).all()
+    
+    return citas_hoy
+
+
+    
