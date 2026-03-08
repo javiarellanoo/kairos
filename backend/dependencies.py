@@ -1,3 +1,4 @@
+import os
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -5,6 +6,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Usuario
 from security import SECRET_KEY, ALGORITHM
+from datetime import datetime
+from dotenv import load_dotenv
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
@@ -42,3 +45,12 @@ def get_is_paciente(current_user: Usuario = Depends(get_current_user)):
     if current_user.rol != "paciente":
         raise HTTPException(status_code=403, detail="No tienes suficientes privilegios para acceder a este recurso. Esta acción es solo para pacientes.")
     return current_user
+
+def get_today():
+
+    load_dotenv()
+    mock_date = os.getenv("MOCK_CURRENT_DATE")
+    if mock_date:
+        return datetime.strptime(mock_date, "%Y-%m-%d").date()
+    else:
+        return datetime.now().date()

@@ -79,6 +79,7 @@ class PatientAgent(Agent):
                         msg_rechazar = Message(to=prop["medico_jid"])
                         msg_rechazar.set_metadata("performative", "reject-proposal")
                         msg_rechazar.set_metadata("ontology", "cita_medica")
+                        msg_rechazar.body = json.dumps({"hueco_rechazado": prop["fecha_hora"]})
                         await self.send(msg_rechazar)
                 
                 email_ganador = mejor_propuesta["medico_jid"].split("@")[0].replace("doctor_", "")

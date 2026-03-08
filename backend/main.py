@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Cita, Paciente, Usuario, Volante, Doctor
 from security import verify_password, create_access_token
-from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente
+from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent
 from schemas import SolicitudCita, MotivoPrimaria
@@ -84,21 +84,39 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
     ESPECIALIDADES_PRIMARIAS = ["Medicina General", "Pediatría"]
     motivo_final = ""
     medicos_jids = []
+    if not current_user.medico_de_cabecera_id and solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
+        raise HTTPException(status_code=400, detail="Para solicitar una cita en especialidades primarias, debes tener un médico de cabecera asignado.")
+    
     if solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
         motivo_final = solicitud.motivo.value if solicitud.motivo else "Consulta general"
         medico = db.query(Doctor).filter(Doctor.id == db.query(Paciente).filter(Paciente.id == current_user.id).first().medico_de_cabecera_id).first()
         medicos_jids.append(f"doctor_{medico.email.split('@')[0].lower()}@localhost")
 
+    if solicitud.especialidad not in ESPECIALIDADES_PRIMARIAS and solicitud.id_volante is None:
+        raise HTTPException(status_code=400, detail="Para especialidades no primarias, se requiere un volante médico.")
+
     prioridad_subasta = 1.0
     if solicitud.id_volante:
-        volante = db.query(Volante).filter(Volante.id == solicitud.id_volante).first()
+        volante = db.query(Volante).filter(Volante.id == solicitud.id_volante, Volante.paciente_id == current_user.id).first()
+
+        if not volante:
+            raise HTTPException(status_code=404, detail="Volante no encontrado")
+
         if volante:
+            if volante.especialidad_destino != solicitud.especialidad:
+                raise HTTPException(status_code=400, detail="El volante proporcionado no corresponde a la especialidad solicitada.")
+            # if volante.motivo_texto != solicitud.motivo.value:
+            #     raise HTTPException(status_code=400, detail="El volante proporcionado no corresponde al motivo de consulta seleccionado.")
+            
+            if volante.estado != "pendiente":
+                raise HTTPException(status_code=400, detail=f"El volante proporcionado ya ha sido procesado o está caducado")
+            
             prioridad_subasta = volante.prioridad_peso
             motivo_final = volante.motivo_texto or motivo_final
             medicos_especialidad = db.query(Doctor).filter(Doctor.especialidad == solicitud.especialidad).all()
             for medico in medicos_especialidad:
                 medicos_jids.append(f"doctor_{medico.email.split('@')[0].lower()}@localhost")
-    
+        
     jid_paciente = f"patient_{current_user.email.split('@')[0].lower()}@localhost"
     agente_paciente = PatientAgent(jid_paciente, "password123")
     preferencias_horarias = db.query(Paciente).filter(Paciente.id == current_user.id).first().preferencias_horarias
@@ -122,6 +140,8 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
         print(f"Agente paciente {jid_paciente} detenido después de procesar la cita.")
     
     if resultado_cita:
+        if volante:
+            volante.estado = "consumido"
         medico_id = db.query(Doctor).filter(Doctor.email.like(f"{resultado_cita['doctor_id']}@%")).first().id if resultado_cita["doctor_id"] else None
         nueva_cita = Cita(
             paciente_id=current_user.id,
@@ -134,6 +154,8 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
             estado=resultado_cita["estado"]
 
         )
+        
+
         db.add(nueva_cita)
         db.commit()
         db.refresh(nueva_cita)
@@ -173,7 +195,7 @@ async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depe
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
     
-    hoy = datetime.now().date()
+    hoy = get_today()
     citas_hoy = db.query(Cita).filter(
         Cita.medico_id == doctor.id,
         Cita.fecha_hora >= datetime.combine(hoy, datetime.min.time()),
