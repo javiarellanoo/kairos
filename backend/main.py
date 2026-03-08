@@ -88,6 +88,8 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
         raise HTTPException(status_code=400, detail="Para solicitar una cita en especialidades primarias, debes tener un médico de cabecera asignado.")
     
     if solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
+        if solicitud.id_volante:
+            raise HTTPException(status_code=400, detail="No se requiere volante para especialidades primarias.")
         motivo_final = solicitud.motivo.value if solicitud.motivo else "Consulta general"
         medico = db.query(Doctor).filter(Doctor.id == db.query(Paciente).filter(Paciente.id == current_user.id).first().medico_de_cabecera_id).first()
         medicos_jids.append(f"doctor_{medico.email.split('@')[0].lower()}@localhost")
@@ -105,8 +107,6 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
         if volante:
             if volante.especialidad_destino != solicitud.especialidad:
                 raise HTTPException(status_code=400, detail="El volante proporcionado no corresponde a la especialidad solicitada.")
-            # if volante.motivo_texto != solicitud.motivo.value:
-            #     raise HTTPException(status_code=400, detail="El volante proporcionado no corresponde al motivo de consulta seleccionado.")
             
             if volante.estado != "pendiente":
                 raise HTTPException(status_code=400, detail=f"El volante proporcionado ya ha sido procesado o está caducado")
@@ -140,7 +140,7 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
         print(f"Agente paciente {jid_paciente} detenido después de procesar la cita.")
     
     if resultado_cita:
-        if volante:
+        if solicitud.id_volante:
             volante.estado = "consumido"
         medico_id = db.query(Doctor).filter(Doctor.email.like(f"{resultado_cita['doctor_id']}@%")).first().id if resultado_cita["doctor_id"] else None
         nueva_cita = Cita(
