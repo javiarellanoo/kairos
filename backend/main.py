@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cita, Paciente, Usuario, Volante, Doctor
-from security import verify_password, create_access_token
-from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today
+from models import Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_searchable_field
+from security import get_password_hash, verify_password, create_access_token
+from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent
-from schemas import SolicitudCita, MotivoPrimaria
+from schemas import SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate
 
 medicos_activos = {}
 
@@ -38,7 +38,6 @@ async def lifespan(app: FastAPI):
         await agente.stop()
         print(f"Agente doctor {jid} detenido al apagar el servidor.")
     print("Servidor apagado y agentes detenidos.")
-# Esto crea todas las tablas en Postgres si no existen
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API TFG - Sistema Multi-Agente Médico", lifespan=lifespan)
@@ -47,15 +46,101 @@ app = FastAPI(title="API TFG - Sistema Multi-Agente Médico", lifespan=lifespan)
 def read_root():
     return {"mensaje": "¡Backend de FastAPI funcionando correctamente!"}
 
+@app.post("/api/signup")
+def signup(usuario: PacienteCreate, db: Session = Depends(get_db), is_not_logged_in: bool = Depends(is_not_logged_in)):
+    existing_user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+    
+    dni_hash = hash_searchable_field(usuario.dni)
+    tarjeta_hash = hash_searchable_field(usuario.tarjeta_sanitaria) if usuario.tarjeta_sanitaria else None
+    
+    existing_dni = db.query(Paciente).filter(Paciente.dni_hash == dni_hash).first()
+    existing_tarjeta = db.query(Paciente).filter(Paciente.tarjeta_sanitaria_hash == tarjeta_hash).first() if tarjeta_hash else None
+    
+    if existing_user:
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+    if existing_dni:
+        raise HTTPException(status_code=400, detail="El DNI ya está registrado")
+    if existing_tarjeta:
+        raise HTTPException(status_code=400, detail="La tarjeta sanitaria ya está registrada")
 
+    hashed_password = get_password_hash(usuario.password)
+    new_user = Paciente(email=usuario.email, 
+                        password=hashed_password, 
+                        rol="paciente",
+                        name=usuario.name,
+                        phone=usuario.phone,
+                        dni=usuario.dni,
+                        birth_date=usuario.birth_date,
+                        tarjeta_sanitaria=usuario.tarjeta_sanitaria,
+                        preferencias_horarias=usuario.preferencias_horarias
+                        )
+    
+    es_menor_de_edad = (get_today() - datetime.datetime.strptime(usuario.birth_date, "%Y-%m-%d").date()).days < 18 * 365
+    if es_menor_de_edad:
+        medicos_cabecera = db.query(Doctor).filter(Doctor.especialidad == "Pediatría").all()
+    else:
+        medicos_cabecera = db.query(Doctor).filter(Doctor.especialidad == "Medicina General").all()
+    if not medicos_cabecera:
+        raise HTTPException(status_code=400, detail="No hay médicos de cabecera disponibles para asignar.")
+    
+    medico_con_menos_pacientes = min(medicos_cabecera, key=lambda doc: db.query(Paciente).filter(Paciente.medico_de_cabecera_id == doc.id).count())
+    new_user.medico_de_cabecera_id = medico_con_menos_pacientes.id
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    token_data = {
+        "sub": new_user.email, 
+        "rol": new_user.rol,
+        "nombre": new_user.name
+    }
+    access_token = create_access_token(data=token_data)
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "rol": new_user.rol
+    }
+
+@app.post("/api/signup-doctor")
+def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    existing_user = db.query(Usuario).filter(Usuario.email == doctor.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+    hashed_password = get_password_hash(doctor.password)
+    especialidad = db.query(Especialidad).filter(Especialidad.name == doctor.especialidad).first()
+    if not especialidad:
+        raise HTTPException(status_code=400, detail="La especialidad no es válida")
+    
+    new_user = Doctor(email=doctor.email,
+                      password=hashed_password,
+                      rol="doctor",
+                      name=doctor.name,
+                      phone=doctor.phone,
+                      duracion_cita=doctor.duracion_cita,
+                      especialidad=doctor.especialidad,
+                      agenda ={})
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    token_data = {
+        "sub": new_user.email, 
+        "rol": new_user.rol,
+        "nombre": new_user.name
+    }
+    access_token = create_access_token(data=token_data)
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "rol": new_user.rol
+    }
 
 @app.post("/api/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), is_not_logged_in: bool = Depends(is_not_logged_in)):
     
-    # 1. Buscar al usuario por email
     usuario = db.query(Usuario).filter(Usuario.email == form_data.username).first()
     
-    # 2. Verificar que existe y que la contraseña (hash) es correcta
     if not usuario or not verify_password(form_data.password, usuario.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,7 +148,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. Generar el Token JWT con los datos importantes dentro
     token_data = {
         "sub": usuario.email, 
         "rol": usuario.rol,
@@ -71,7 +155,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
     access_token = create_access_token(data=token_data)
     
-    # 4. Devolver el token al frontend
     return {
         "access_token": access_token, 
         "token_type": "bearer",
@@ -87,6 +170,11 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
     if not current_user.medico_de_cabecera_id and solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
         raise HTTPException(status_code=400, detail="Para solicitar una cita en especialidades primarias, debes tener un médico de cabecera asignado.")
     
+    if solicitud.especialidad:
+        especialidad_valida = db.query(Especialidad).filter(Especialidad.name == solicitud.especialidad).first()
+        if not especialidad_valida:
+            raise HTTPException(status_code=400, detail="La especialidad solicitada no es válida.")
+
     if solicitud.especialidad in ESPECIALIDADES_PRIMARIAS:
         if solicitud.id_volante:
             raise HTTPException(status_code=400, detail="No se requiere volante para especialidades primarias.")
@@ -185,21 +273,18 @@ def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get
 async def agenda_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     doctor = db.query(Doctor).filter(Doctor.email.like(f"{current_user.email}%")).first()
     citas = db.query(Cita).filter(Cita.medico_id == doctor.id, Cita.estado != "cancelada").all()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor no encontrado")
     return citas;
 
 @app.get("/api/agenda-hoy")
 async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     doctor = db.query(Doctor).filter(Doctor.email.like(f"{current_user.email}%")).first()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor no encontrado")
-    
     hoy = get_today()
+
+    hoy_str = hoy.isoformat()
+    
     citas_hoy = db.query(Cita).filter(
         Cita.medico_id == doctor.id,
-        Cita.fecha_hora >= datetime.combine(hoy, datetime.min.time()),
-        Cita.fecha_hora <= datetime.combine(hoy, datetime.max.time()),
+        Cita.fecha_hora.startswith(hoy_str),
         Cita.estado != "cancelada"
     ).all()
     

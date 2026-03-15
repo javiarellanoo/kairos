@@ -7,11 +7,12 @@ import uuid
 from datetime import date
 
 from database import SessionLocal
-from models import Paciente
+from models import Cita, Paciente, hash_searchable_field
 from security import get_password_hash
 
 PATIENT_1 = {"username": "luissalo569@fakeemail.com", "password": "test_password"}
 PATIENT_2 = {"username": "genode243@example.com",    "password": "test_password"}
+DOCTOR_1 = {"username": "anadel212@fakeemail.com", "password": "test_password"}
 
 async def get_auth_headers(client: AsyncClient, credentials: dict) -> dict:
     response = await client.post("/api/login", data=credentials)
@@ -51,6 +52,14 @@ async def test_citas_concurrentes():
 
             assert respuesta_1.json()["fecha_hora"] != respuesta_2.json()["fecha_hora"]
 
+            cita_1_id = respuesta_1.json()["id"]
+            cita_2_id = respuesta_2.json()["id"]
+            
+            db = SessionLocal()
+            db.query(Cita).filter(Cita.id.in_([cita_1_id, cita_2_id])).delete()
+            db.commit()
+            db.close()
+
 
 @pytest.mark.asyncio
 async def test_cita_sin_volante_para_especialidad_no_primaria(client):
@@ -61,7 +70,6 @@ async def test_cita_sin_volante_para_especialidad_no_primaria(client):
     }, headers=headers)
 
     assert response.status_code == 400
-    print(f"Respuesta para cita sin volante: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_para_especialidad_primaria(client):
@@ -74,7 +82,6 @@ async def test_cita_con_volante_para_especialidad_primaria(client):
     }, headers=headers)
 
     assert response.status_code == 400
-    print(f"Respuesta para cita con volante en especialidad primaria: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_no_existente(client):
@@ -86,7 +93,6 @@ async def test_cita_con_volante_no_existente(client):
     }, headers=headers)
 
     assert response.status_code == 404
-    print(f"Respuesta para cita con volante no existente: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_de_otro_paciente(client):
@@ -100,8 +106,6 @@ async def test_cita_con_volante_de_otro_paciente(client):
     }, headers=headers)
 
     assert response.status_code == 404
-    print(f"Respuesta para cita con volante de otro paciente: {response.json()}")
-
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_con_especialidad_incompatible(client):
@@ -115,7 +119,6 @@ async def test_cita_con_volante_con_especialidad_incompatible(client):
     }, headers=headers)
 
     assert response.status_code == 400
-    print(f"Respuesta para cita con volante de especialidad incompatible: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_caducado_o_procesado(client):
@@ -129,7 +132,6 @@ async def test_cita_con_volante_caducado_o_procesado(client):
     }, headers=headers)
 
     assert response.status_code == 400
-    print(f"Respuesta para cita con volante caducado o procesado: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_pendiente(client):
@@ -142,11 +144,16 @@ async def test_cita_con_volante_pendiente(client):
     }, headers=headers)
 
     assert response.status_code == 200
-    print(f"Respuesta para cita con volante pendiente: {response.json()}")
 
 @pytest.mark.asyncio
 async def test_cita_paciente_sin_medico_de_cabecera(client):
-    email = f"paciente_sin_medico_{uuid.uuid4().hex[:8]}@example.com"
+
+    sufijo_unico = uuid.uuid4().hex[:8]
+    email = f"paciente_sin_medico_{sufijo_unico}@example.com"
+    
+    # Valores aleatorios para que NUNCA choquen
+    dni_test = f"{sufijo_unico}A"
+    tarjeta_test = f"AN-{sufijo_unico}1"
     db = SessionLocal()
     try:
         nuevo_paciente = Paciente(
@@ -154,9 +161,11 @@ async def test_cita_paciente_sin_medico_de_cabecera(client):
             name="Paciente Sin Medico",
             password=get_password_hash("test_password"),
             phone="600000000",
-            dni=f"11111111A",
+            dni=dni_test,
+            dni_hash=hash_searchable_field(dni_test),
             birth_date=date(1990, 1, 1),
-            tarjeta_sanitaria="AN 111111111",
+            tarjeta_sanitaria=tarjeta_test,
+            tarjeta_sanitaria_hash=hash_searchable_field(tarjeta_test),
             medico_de_cabecera_id=None,
             preferencias_horarias={"lunes": ["M"], "martes": ["M"], "miercoles": ["M"], "jueves": ["M"], "viernes": ["M"]},
         )
@@ -174,6 +183,59 @@ async def test_cita_paciente_sin_medico_de_cabecera(client):
     }, headers=headers)
 
     assert response.status_code == 400
-    print(f"Respuesta para cita sin médico de cabecera: {response.json()}")
+
+@pytest.mark.asyncio
+async def test_cita_con_especialidad_invalida(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.post("/api/nueva-cita", json={
+        "especialidad": "Especialidad Inexistente",
+        "motivo": "Consulta general",
+        "lista_espera": False
+    }, headers=headers)
+
+    assert response.status_code == 400
+
+@pytest.mark.asyncio
+async def test_cancelar_cita(client, db_session):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.patch("/api/cancelar-cita/296", headers=headers)
+    cita = db_session.query(Cita).filter(Cita.id == 296).first()
+    assert cita.estado == "cancelada"
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cancelar_cita_con_cita_no_existente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.patch("/api/cancelar-cita/9999", headers=headers)
+    assert response.status_code == 404
+
+@pytest.mark.asyncio
+async def test_cancelar_cita_de_otro_paciente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.patch("/api/cancelar-cita/297", headers=headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_mis_citas(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/mis-citas", headers=headers)
+    assert response.status_code == 200
+
+@pytest.mark.asyncio
+async def test_agenda_doctor(client):
+    headers = await get_auth_headers(client, DOCTOR_1)
+    response = await client.get("/api/agenda-doctor", headers=headers)
+    assert response.status_code == 200
+
+@pytest.mark.asyncio
+async def test_agenda_hoy_doctor(client):
+    headers = await get_auth_headers(client, DOCTOR_1)
+    response = await client.get("/api/agenda-hoy", headers=headers)
+    assert response.status_code == 200
+
+
+
 
 

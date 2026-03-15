@@ -7,9 +7,10 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from sqlalchemy import Column, Enum as SQLEnum, String, Date, Integer, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, validates
 from sqlalchemy_utils import StringEncryptedType
 from sqlalchemy_utils.types.encrypted.encrypted_type import FernetEngine
+import hashlib
 
 load_dotenv()
 
@@ -30,6 +31,12 @@ def _get_encryption_key() -> str:
 
 
 ENCRYPTION_KEY = _get_encryption_key()
+
+def hash_searchable_field(value: str) -> str:
+    if value is None:
+        return None
+    # Usamos HMAC-like logic o un salt con la clave de encriptación para evitar diccionarios/rainbow tables
+    return hashlib.sha256((value + ENCRYPTION_KEY).encode("utf-8")).hexdigest()
 
 Base = declarative_base()
 
@@ -70,11 +77,28 @@ class Paciente(Usuario):
     
     id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), primary_key=True)
     
-    dni = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine), unique=True, index=True, nullable=False)
+    dni = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine), nullable=False)
+    dni_hash = Column(String, unique=True, index=True, nullable=False)
+    
     birth_date = Column(Date, nullable=False)
-    tarjeta_sanitaria = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine), unique=True)
+    
+    tarjeta_sanitaria = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine))
+    tarjeta_sanitaria_hash = Column(String, unique=True, index=True)
+    
     medico_de_cabecera_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id"))
     preferencias_horarias = Column(JSONB)
+
+    @validates('dni')
+    def validate_dni(self, key, dni):
+        if dni is not None:
+            self.dni_hash = hash_searchable_field(dni)
+        return dni
+
+    @validates('tarjeta_sanitaria')
+    def validate_tarjeta(self, key, tarjeta_sanitaria):
+        if tarjeta_sanitaria is not None:
+            self.tarjeta_sanitaria_hash = hash_searchable_field(tarjeta_sanitaria)
+        return tarjeta_sanitaria
 
     __mapper_args__ = {
         "polymorphic_identity": "paciente", 
@@ -95,7 +119,6 @@ class Doctor(Usuario):
 
 class Administrador(Usuario):
     __tablename__ = "administradores"
-    
     email = Column(String, ForeignKey("usuarios.email"), primary_key=True)
 
     __mapper_args__ = {

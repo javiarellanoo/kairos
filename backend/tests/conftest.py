@@ -33,7 +33,7 @@ async def client(db_session):
     """Cliente HTTP asíncrono que levanta a los agentes (Lifespan)"""
     app.dependency_overrides[get_db] = lambda: db_session
 
-    async with LifespanManager(app):
+    async with LifespanManager(app, startup_timeout=60.0):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
             yield ac

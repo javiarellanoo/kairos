@@ -17,6 +17,7 @@ from models import (
     Cita,
     EstadoVolante,
     EstadoCita,
+    Administrador
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -216,7 +217,16 @@ def load_data():
 
     db.commit()
     print("✅ Médicos de cabecera asignados.")
-
+    # 6. ADMINISTRADOR
+    db.add(Administrador(
+            email="admin@tfg.com",
+            name="Admin",
+            password=get_password_hash("admin123"),
+            phone="600000000",
+            rol="admin",
+        ))
+    db.commit()
+    print("✅ Administrador creado.")
     db.close()
     print("🎉 SEED COMPLETADO CON ÉXITO.")
 
