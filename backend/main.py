@@ -290,5 +290,65 @@ async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depe
     
     return citas_hoy
 
+@app.get("/api/pacientes/me")
+def get_current_patient_info(current_user: Usuario = Depends(get_is_paciente), db: Session = Depends(get_db)):
+    return {
+        "email": current_user.email,
+        "name": current_user.name,
+        "phone": current_user.phone,
+        "dni": current_user.dni,
+        "birth_date": current_user.birth_date,
+        "tarjeta_sanitaria": current_user.tarjeta_sanitaria,
+        "preferencias_horarias": current_user.preferencias_horarias
+    }
 
+@app.put("/api/pacientes/me")
+def update_current_patient_info(updated_info: PacienteCreate, current_user: Usuario = Depends(get_is_paciente), db: Session = Depends(get_db)):
+    paciente = db.query(Paciente).filter(Paciente.id == current_user.id).first()
     
+    if updated_info.email and updated_info.email != paciente.email:
+        existing_user = db.query(Usuario).filter(Usuario.email == updated_info.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="El email ya está registrado")
+        paciente.email = updated_info.email
+    
+    if updated_info.dni and updated_info.dni != paciente.dni:
+        dni_hash = hash_searchable_field(updated_info.dni)
+        existing_dni = db.query(Paciente).filter(Paciente.dni_hash == dni_hash).first()
+        if existing_dni:
+            raise HTTPException(status_code=400, detail="El DNI ya está registrado")
+        paciente.dni = updated_info.dni
+    
+    if updated_info.tarjeta_sanitaria and updated_info.tarjeta_sanitaria != paciente.tarjeta_sanitaria:
+        tarjeta_hash = hash_searchable_field(updated_info.tarjeta_sanitaria)
+        existing_tarjeta = db.query(Paciente).filter(Paciente.tarjeta_sanitaria_hash == tarjeta_hash).first()
+        if existing_tarjeta:
+            raise HTTPException(status_code=400, detail="La tarjeta sanitaria ya está registrada")
+        paciente.tarjeta_sanitaria = updated_info.tarjeta_sanitaria
+    
+    paciente.name = updated_info.name
+    paciente.phone = updated_info.phone
+    paciente.birth_date = updated_info.birth_date
+    paciente.preferencias_horarias = updated_info.preferencias_horarias
+
+    db.commit()
+    db.refresh(paciente)
+    
+    return {
+        "email": paciente.email,
+        "name": paciente.name,
+        "phone": paciente.phone,
+        "dni": paciente.dni,
+        "birth_date": paciente.birth_date,
+        "tarjeta_sanitaria": paciente.tarjeta_sanitaria,
+        "preferencias_horarias": paciente.preferencias_horarias
+    }
+    
+@app.get("/api/citas/{cita_id}")
+def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.paciente_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
+    return cita
