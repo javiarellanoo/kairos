@@ -373,7 +373,7 @@ def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depen
     if volante_info.especialidad_destino in ["Medicina General", "Pediatría"]:
         raise HTTPException(status_code=400, detail="No se pueden crear volantes para especialidades primarias.")
     
-    fecha_cita = datetime.strptime(cita.fecha_hora, "%Y-%m-%dT%H:%M:%S").date()
+    fecha_cita = datetime.datetime.strptime(cita.fecha_hora, "%Y-%m-%dT%H:%M:%S").date()
     if get_today() != fecha_cita:
         raise HTTPException(status_code=400, detail="No puedes crear volantes para citas de días futuros o pasados.")
     
