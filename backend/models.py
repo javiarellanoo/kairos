@@ -135,6 +135,7 @@ class Volante(Base):
     prioridad_peso = Column(Float, nullable=False)
     motivo_texto = Column(String)
     estado = Column(SQLEnum(EstadoVolante), default=EstadoVolante.PENDIENTE)
+    observaciones = Column(String)
     fecha_emision = Column(Date)
 
 class Cita(Base):

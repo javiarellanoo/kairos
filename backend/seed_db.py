@@ -117,7 +117,8 @@ def load_data():
             prioridad_peso=float(row['prioridad_peso']),
             motivo_texto=row['motivo_texto'],
             estado=estado_val,
-            fecha_emision=datetime.strptime(row['emision'], '%Y-%m-%d').date()
+            fecha_emision=datetime.strptime(row['emision'], '%Y-%m-%d').date(),
+            observaciones=None
         ))
     db.commit()
     print("✅ Volantes cargados.")

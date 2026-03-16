@@ -7,15 +7,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_searchable_field
+from models import Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_searchable_field, EstadoVolante
 from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent
-from schemas import SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate
+from schemas import SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante
 
 medicos_activos = {}
-
+PESOS_VOLANTES = {
+        UrgenciaVolante.BAJA: 1.0,
+        UrgenciaVolante.MEDIA: 2.0,
+        UrgenciaVolante.ALTA: 3.0
+    }
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Levantando el servidor y despertando agentes...")
@@ -353,3 +357,38 @@ def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario 
     if cita.paciente_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
     return cita
+
+@app.post("/api/volantes/{cita_id}")
+def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    medico = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.medico_id != medico.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para crear un volante para esta cita")
+
+    if medico.especialidad not in ["Medicina General", "Pediatría"] and volante_info.especialidad_destino != medico.especialidad:
+        raise HTTPException(status_code=400, detail="Solo puedes crear volantes para tu misma especialidad.")
+    
+    if volante_info.especialidad_destino in ["Medicina General", "Pediatría"]:
+        raise HTTPException(status_code=400, detail="No se pueden crear volantes para especialidades primarias.")
+    
+    fecha_cita = datetime.strptime(cita.fecha_hora, "%Y-%m-%dT%H:%M:%S").date()
+    if get_today() != fecha_cita:
+        raise HTTPException(status_code=400, detail="No puedes crear volantes para citas de días futuros o pasados.")
+    
+    nuevo_volante = Volante(
+        paciente_id=cita.paciente_id,
+        medico_emisor_id=current_user.id,
+        especialidad_destino=volante_info.especialidad_destino,
+        motivo_texto=volante_info.motivo.value,
+        prioridad_peso=PESOS_VOLANTES[volante_info.motivo],
+        observaciones=volante_info.observaciones,
+        estado=EstadoVolante.PENDIENTE,
+        fecha_emision=get_today()
+    )
+    db.add(nuevo_volante)
+    db.commit()
+    db.refresh(nuevo_volante)
+    
+    return nuevo_volante

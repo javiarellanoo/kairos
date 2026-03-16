@@ -148,3 +148,95 @@ async def test_signup_doctor_especialidad_invalida(client):
     }, headers = headers)
     assert response.status_code == 400
 
+@pytest.mark.asyncio
+async def test_mi_perfil_paciente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/pacientes/me", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == PATIENT_1["username"]
+    assert "name" in data
+    assert "phone" in data
+    assert "dni" in data
+    assert "birth_date" in data
+    assert "tarjeta_sanitaria" in data
+    assert "preferencias_horarias" in data
+
+@pytest.mark.asyncio
+async def test_mi_perfil_sin_autenticar(client):
+    response = await client.get("/api/pacientes/me")
+    assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_actualizar_perfil_paciente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.put("/api/pacientes/me", json={
+        "email": "luissalo569@fakeemail.com",
+        "password": "test_password",
+        "name": "Nuevo Nombre",
+        "phone": "777777777",
+        "birth_date": "1990-01-01",
+        "tarjeta_sanitaria": "AN 2222222221",
+        "dni": "11111111K",
+        "preferencias_horarias": {
+            "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
+        }
+    }, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Nuevo Nombre"
+    assert data["phone"] == "777777777"
+    assert data["preferencias_horarias"] == {
+        "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
+    }
+
+@pytest.mark.asyncio
+async def test_actualizar_perfil_dni_duplicado(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.put("/api/pacientes/me", json={
+        "email": "luissalo569@fakeemail.com",
+        "password": "test_password",
+        "name": "Nuevo Nombre",
+        "phone": "777777777",
+        "birth_date": "1990-01-01",
+        "tarjeta_sanitaria": "AN 111111110",
+        "dni": "62664196Y",
+        "preferencias_horarias": {
+            "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
+        }
+    }, headers=headers)
+    assert response.status_code == 400
+
+@pytest.mark.asyncio
+async def test_actualizar_perfil_tarjeta_duplicada(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.put("/api/pacientes/me", json={
+        "email": "luissalo569@fakeemail.com",
+        "password": "test_password",
+        "name": "Nuevo Nombre",
+        "phone": "777777777",
+        "birth_date": "1990-01-01",
+        "tarjeta_sanitaria": "AN 5716382928",
+        "dni": "62664196W",
+        "preferencias_horarias": {
+            "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
+        }
+    }, headers=headers)
+    assert response.status_code == 400
+
+@pytest.mark.asyncio
+async def test_editar_perfil_email_duplicado(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.put("/api/pacientes/me", json={
+        "email": "aitasala693@fakeemail.com",
+        "password": "test_password",
+        "name": "Nuevo Nombre",
+        "phone": "777777777",
+        "birth_date": "1990-01-01",
+        "tarjeta_sanitaria": "AN 5716382928",
+        "dni": "62664196W",
+        "preferencias_horarias": {
+            "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
+        }
+    }, headers=headers)
+    assert response.status_code == 400

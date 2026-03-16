@@ -235,8 +235,26 @@ async def test_agenda_hoy_doctor(client):
     response = await client.get("/api/agenda-hoy", headers=headers)
     assert response.status_code == 200
 
+@pytest.mark.asyncio
+async def test_detalles_cita(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/citas/296", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == 296
+    assert "fecha_hora" in data
+    assert "estado" in data
+    assert "especialidad" in data
 
+@pytest.mark.asyncio
+async def test_detalles_cita_no_existente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/citas/9999", headers=headers)
+    assert response.status_code == 404
 
-
-
+@pytest.mark.asyncio
+async def test_detalles_cita_de_otro_paciente(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/citas/297", headers=headers)
+    assert response.status_code == 403
 

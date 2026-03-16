@@ -31,3 +31,14 @@ class DoctorCreate(BaseModel):
     duracion_cita: int
     especialidad: str
     consulta: Optional[str] = None
+
+class UrgenciaVolante(str, Enum):
+    BAJA = "Volante - Derivación Baja"
+    MEDIA = "Volante - Derivación Media"
+    ALTA = "Volante - Derivación Alta"
+
+class VolanteCreate(BaseModel):
+    especialidad_destino: str
+    motivo: UrgenciaVolante
+    observaciones: Optional[str] = None
+
