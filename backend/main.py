@@ -119,6 +119,7 @@ def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_u
                       phone=doctor.phone,
                       duracion_cita=doctor.duracion_cita,
                       especialidad=doctor.especialidad,
+                      consulta=doctor.consulta,
                       agenda ={})
     db.add(new_user)
     db.commit()

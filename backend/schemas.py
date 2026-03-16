@@ -30,3 +30,4 @@ class DoctorCreate(BaseModel):
     phone: str
     duracion_cita: int
     especialidad: str
+    consulta: Optional[str] = None

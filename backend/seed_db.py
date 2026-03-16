@@ -40,7 +40,7 @@ def load_data():
     print("🚀 Iniciando Seed...")
 
     # 1. ESPECIALIDADES
-    df_spec = pd.read_csv(DATA_DIR / 'specialties.csv')
+    df_spec = pd.read_csv(DATA_DIR / 'specialties.csv', skipinitialspace=True)
     for _, row in df_spec.iterrows():
         db.add(Especialidad(name=row['name']))
     db.commit()
@@ -50,9 +50,9 @@ def load_data():
     doctor_id_by_email = {}
     doctors_by_specialty = {}
     doctor_specialty_by_id = {}
-    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv')
+    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv', skipinitialspace=True)
     for _, row in df_doc.iterrows():
-        agenda_json = json.loads(row['agenda'].replace('""', '"')) if isinstance(row['agenda'], str) else row['agenda']
+        agenda_json = json.loads(row['agenda']) if isinstance(row['agenda'], str) else row['agenda']
         did = uuid.uuid4()
         db.add(Doctor(
             id=did,
@@ -63,6 +63,7 @@ def load_data():
             duracion_cita=int(row['duracion_cita']),
             especialidad=row['especialidad'],
             agenda=agenda_json,
+            consulta= row['consulta'],
             rol="doctor",
         ))
         doctor_id_by_email[row['email']] = did
@@ -76,10 +77,9 @@ def load_data():
     paciente_id_by_dni = {}
     paciente_id_by_email = {}
     paciente_birthdate = {}
-    df_pat = pd.read_csv(DATA_DIR / 'patients.csv')
+    df_pat = pd.read_csv(DATA_DIR / 'patients.csv', skipinitialspace=True)
     for _, row in df_pat.iterrows():
-        # Los CSV suelen tener comillas extra en el JSON, las limpiamos si es necesario
-        prefs = json.loads(row['preferencias_horarias'].replace('""', '"')) if isinstance(row['preferencias_horarias'], str) else row['preferencias_horarias']
+        prefs = json.loads(row['preferencias_horarias']) if isinstance(row['preferencias_horarias'], str) else row['preferencias_horarias']
         pid = uuid.uuid4()
         db.add(Paciente(
             id=pid,
@@ -99,7 +99,7 @@ def load_data():
     db.commit()
     print("✅ Pacientes cargados.")
     # 4. VOLANTES
-    df_vol = pd.read_csv(DATA_DIR / 'volantes.csv')
+    df_vol = pd.read_csv(DATA_DIR / 'volantes.csv', skipinitialspace=True)
     for _, row in df_vol.iterrows():
         estado_val = row['estado']
         if isinstance(estado_val, str):
@@ -123,7 +123,7 @@ def load_data():
     print("✅ Volantes cargados.")
 
     # 5. CITAS
-    df_cit = pd.read_csv(DATA_DIR / 'citas.csv')
+    df_cit = pd.read_csv(DATA_DIR / 'citas.csv', skipinitialspace=True)
     primary_doctor_candidate = {}
 
     def register_primary_doctor(paciente_id, doctor_id, fecha_hora_str):

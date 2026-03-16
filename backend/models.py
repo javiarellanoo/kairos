@@ -111,6 +111,7 @@ class Doctor(Usuario):
     
     duracion_cita = Column(Integer, default=15)
     especialidad = Column(String, ForeignKey("especialidades.name"))
+    consulta = Column(String, nullable=True)
     agenda = Column(JSONB)
 
     __mapper_args__ = {
