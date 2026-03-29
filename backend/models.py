@@ -49,6 +49,7 @@ class EstadoCita(str, Enum):
     CONFIRMADA = "confirmada"
     CANCELADA = "cancelada"
     NO_ASISTIDA = "no_asistida"
+    PENDIENTE_ACEPTACION = "pendiente_aceptacion"
 
 class EstadoVolante(str, Enum):
     PENDIENTE = "pendiente"
@@ -120,7 +121,7 @@ class Doctor(Usuario):
 
 class Administrador(Usuario):
     __tablename__ = "administradores"
-    email = Column(String, ForeignKey("usuarios.email"), primary_key=True)
+    id = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), primary_key=True)
 
     __mapper_args__ = {
         "polymorphic_identity": "admin",

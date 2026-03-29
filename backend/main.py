@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Dict, List
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from database import SessionLocal, engine, Base
@@ -11,8 +11,12 @@ from models import Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_
 from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
-from agents import PatientAgent, DoctorAgent
-from schemas import SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante
+from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
+from schemas import DecisionAdelanto, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DuracionCitaUpdate, EstadoCitaUpdate
+from spade.message import Message
+import json
+from spade.agent import Agent
+from spade.behaviour import OneShotBehaviour
 
 medicos_activos = {}
 PESOS_VOLANTES = {
@@ -32,6 +36,11 @@ async def lifespan(app: FastAPI):
             await agente_doctor.start(auto_register=True)
             medicos_activos[jid_doctor] = agente_doctor
             print(f"Agente doctor {jid_doctor} iniciado al arrancar el servidor.")
+        jid_gestor_lista_espera = "gestor_lista_espera@localhost"
+        agente_gestor_lista_espera = GestorListaEsperaAgente(jid_gestor_lista_espera, "password123")
+        await agente_gestor_lista_espera.start(auto_register=True)
+        medicos_activos[jid_gestor_lista_espera] = agente_gestor_lista_espera
+        print(f"Agente gestor de lista de espera {jid_gestor_lista_espera} iniciado al arrancar el servidor.")
     except Exception as e:
         print(f"Error al iniciar agentes de doctor: {e}")
     finally:
@@ -40,7 +49,7 @@ async def lifespan(app: FastAPI):
 
     for jid, agente in medicos_activos.items():
         await agente.stop()
-        print(f"Agente doctor {jid} detenido al apagar el servidor.")
+        print(f"Agente {jid} detenido al apagar el servidor.")
     print("Servidor apagado y agentes detenidos.")
 Base.metadata.create_all(bind=engine)
 
@@ -49,6 +58,22 @@ app = FastAPI(title="API TFG - Sistema Multi-Agente Médico", lifespan=lifespan)
 @app.get("/")
 def read_root():
     return {"mensaje": "¡Backend de FastAPI funcionando correctamente!"}
+
+async def enviar_mensaje_xmpp(msg: Message):
+    class EnviarMensajeBehaviour(OneShotBehaviour):
+        def __init__(self, mensaje_a_enviar):
+            super().__init__()
+            self.mensaje = mensaje_a_enviar
+        async def run(self):
+            await self.send(self.mensaje)
+            print(f"[Cartero] Mensaje entregado a {self.mensaje.to}")
+    cartero = Agent("fastapi_sender@localhost", "password123", verify_security=False)
+    await cartero.start()
+
+    b = EnviarMensajeBehaviour(msg)
+    cartero.add_behaviour(b)
+    await b.join()
+    await cartero.stop()
 
 @app.post("/api/signup")
 def signup(usuario: PacienteCreate, db: Session = Depends(get_db), is_not_logged_in: bool = Depends(is_not_logged_in)):
@@ -258,7 +283,7 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
     
 
 @app.patch("/api/cancelar-cita/{cita_id}")
-def cancelar_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+async def cancelar_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
     cita = db.query(Cita).filter(Cita.id == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
@@ -267,7 +292,56 @@ def cancelar_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usu
     
     cita.estado = "cancelada"
     db.commit()
+
+    try:
+        fecha_hora = cita.fecha_hora
+        msg_al_gestor = Message(to="gestor_lista_espera@localhost")
+        msg_al_gestor.body = json.dumps({
+            "doctor_id": str(cita.medico_id),
+            "fecha_hora": fecha_hora})
+        
+        await enviar_mensaje_xmpp(msg_al_gestor)
+        print (f"Disparador de reasignación enviado al gestor de lista de espera para la cita cancelada con ID {cita_id}.")
+    
+    except Exception as e:
+        print(f"Error al notificar al gestor de lista de espera sobre la cancelación de la cita: {e}")
+        
     return {"mensaje": "Cita cancelada exitosamente"}
+
+@app.post("/api/adelantar-cita/{cita_id}")
+async def adelantar_cita(cita_id: int, decision: DecisionAdelanto, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    decision_str = decision.decision.lower()
+    if decision_str not in ["aceptar", "rechazar"]:
+        raise HTTPException(status_code=400, detail="La decisión debe ser 'aceptar' o 'rechazar'.")
+    
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.paciente_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para tomar esta decisión sobre la cita")
+    if cita.estado != "pendiente_aceptacion":
+        raise HTTPException(status_code=400, detail="Esta cita no está pendiente de aceptación para adelanto.")
+    
+    try:
+        email_paciente = current_user.email.split("@")[0].lower()
+        jid_paciente = f"patient_{email_paciente}@localhost"
+        msg_al_agente = Message(to=jid_paciente)
+        msg_al_agente.body = json.dumps({"decision": decision_str})
+
+        await enviar_mensaje_xmpp(msg_al_agente)
+
+    except Exception as e:
+        print(f"Error al enviar la decisión de adelanto al agente paciente: {e}")
+        raise HTTPException(status_code=500, detail="Error al procesar tu decisión. Por favor, inténtalo de nuevo.")
+    
+    return {"mensaje": f"Has {'aceptado' if decision_str == 'aceptar' else 'rechazado'} el adelanto de tu cita."}
+
+@app.get("/api/citas/adelantos")
+def obtener_citas_adelantos(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    citas_adelantos = db.query(Cita).filter(Cita.paciente_id == current_user.id, Cita.estado == "pendiente_aceptacion").all()
+    return citas_adelantos
+
 
 @app.get("/api/mis-citas")
 def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
@@ -392,3 +466,74 @@ def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depen
     db.refresh(nuevo_volante)
     
     return nuevo_volante
+
+@app.patch("/api/doctors/me/agenda")
+def actualizar_agenda_doctor(agenda: Dict[str, List[str]], db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    if not agenda: 
+        raise HTTPException(status_code=400, detail="La agenda no puede estar vacía")
+    today_str = get_today().isoformat()
+
+    agenda_actual = doctor.agenda or {}
+    agenda_activa = {fecha: horas for fecha, horas in agenda_actual.items() if fecha >= today_str}
+
+    fechas_futuras_en_agenda = sorted(agenda_activa.keys())
+    ultima_fecha_activa = fechas_futuras_en_agenda[-1] if fechas_futuras_en_agenda else None
+
+    fechas_nuevas = sorted(agenda.keys())
+    primera_fecha_nueva = fechas_nuevas[0]
+
+    try:
+        for date_str in fechas_nuevas:
+            datetime.date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD.")
+    
+    if primera_fecha_nueva < today_str:
+        raise HTTPException(status_code=400, detail="No se pueden agregar fechas pasadas a la agenda.")
+    
+    if ultima_fecha_activa and primera_fecha_nueva <= ultima_fecha_activa:
+        raise HTTPException(status_code=400, detail="La nueva agenda debe comenzar después de la última fecha activa actual.")
+    
+    agenda_activa.update(agenda)
+    doctor.agenda = agenda_activa
+
+    db.commit()
+    db.refresh(doctor)
+
+    return {"mensaje": "Agenda actualizada exitosamente", "agenda": doctor.agenda}
+
+@app.patch("/api/doctors/me/duracion-cita")
+def actualizar_duracion_cita(duracion: DuracionCitaUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+
+    if duracion.duracion_cita <= 0:
+        raise HTTPException(status_code=400, detail="La duración de la cita debe ser un número positivo.")
+    
+    doctor.duracion_cita = duracion.duracion_cita
+    db.commit()
+    db.refresh(doctor)
+
+    return {"mensaje": "Duración de cita actualizada exitosamente", "duracion_cita": doctor.duracion_cita}
+
+@app.patch("/api/doctors/citas/{cita_id}")
+def actualizar_estado_cita(cita_id: int, nuevo_estado: EstadoCitaUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.medico_id != doctor.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para actualizar esta cita")
+    
+    if cita.estado == "cancelada":
+        raise HTTPException(status_code=400, detail="No se puede actualizar una cita cancelada")
+    
+    estados_validos = ["confirmada", "no_asistida"]
+    if nuevo_estado.estado.value not in estados_validos:
+        raise HTTPException(status_code=400, detail=f"Estado inválido. Los estados válidos son: {', '.join(estados_validos)}")
+    
+    cita.estado = nuevo_estado.estado
+    db.commit()
+    db.refresh(cita)
+
+    return {"mensaje": "Estado de la cita actualizado exitosamente", "cita": cita}

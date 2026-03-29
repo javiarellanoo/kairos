@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from enum import Enum
+from models import EstadoCita
 
 class MotivoPrimaria(str, Enum):
     analiticas = "Revisión de analíticas"
@@ -42,3 +43,12 @@ class VolanteCreate(BaseModel):
     motivo: UrgenciaVolante
     observaciones: Optional[str] = None
 
+class DuracionCitaUpdate(BaseModel):
+    duracion_cita: int
+
+class EstadoCitaUpdate(BaseModel):
+    estado: EstadoCita
+
+class DecisionAdelanto(BaseModel):
+    decision: str
+    
