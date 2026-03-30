@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+html, body, #root {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+@theme {
+  --color-accent: #0a2342;
+  --color-primary: #00a8cc;
+}

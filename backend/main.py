@@ -17,6 +17,7 @@ from spade.message import Message
 import json
 from spade.agent import Agent
 from spade.behaviour import OneShotBehaviour
+from fastapi.middleware.cors import CORSMiddleware
 
 medicos_activos = {}
 PESOS_VOLANTES = {
@@ -24,6 +25,7 @@ PESOS_VOLANTES = {
         UrgenciaVolante.MEDIA: 2.0,
         UrgenciaVolante.ALTA: 3.0
     }
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Levantando el servidor y despertando agentes...")
@@ -54,6 +56,14 @@ async def lifespan(app: FastAPI):
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API TFG - Sistema Multi-Agente Médico", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
