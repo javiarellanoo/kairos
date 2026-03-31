@@ -70,21 +70,22 @@ export const Register = () => {
         setIsLoading(true);
         console.log("JSON listo para la BBDD:", JSON.stringify(formData, null, 2));
 
-        try{
-        const response = await apiClient.post('/signup', formData, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        });
+       try {
+          const response = await apiClient.post('/signup', formData);
 
-        setIsLoading(false);
-        navigate('/');
-        } catch (error) {
+          console.log("Respuesta del servidor:", response.data);
+
+          setIsLoading(false);
+          alert('¡Registro completado con éxito!');
+          navigate('/');
+          
+        } catch (error: any) {
             console.error('Error durante el registro:', error);
             setIsLoading(false);
-            alert('Error al registrarse. Por favor, verifica tus datos e inténtalo de nuevo.');
+            const errorMessage = error.response?.data?.detail || 'Error al registrarse. Por favor, verifica tus datos e inténtalo de nuevo.';
+            alert(`Error: ${errorMessage}`);
         }
-    };
+      }
 };
 
     return (
