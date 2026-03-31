@@ -22,6 +22,7 @@ export const Register = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -39,9 +40,48 @@ export const Register = () => {
         }
     });
 
+    const validateStep1 = () => {
+      const newErrors: Record<string, string> = {};
+
+      if (!/^\d{8}[A-Za-z]$/.test(formData.dni)) {
+        newErrors.dni = "El DNI debe tener 8 números y una letra.";
+      }
+
+      if (!/^[A-Z]{2} \d{10}$/.test(formData.tarjeta_sanitaria)) {
+        newErrors.tarjeta_sanitaria = "Formato inválido. Ejemplo: AN 1234567890";
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const validateStep2 = () => {
+      const newErrors: Record<string, string> = {};
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = "Introduce un correo válido.";
+      }
+
+      if (!/^(?:\+34|0034)?[6789]\d{8}$/.test(formData.phone)) {
+        newErrors.phone = "Introduce un número de teléfono válido.";
+      }
+
+      if (formData.password.length < 8) {
+        newErrors.password = "La contraseña debe tener al menos 8 caracteres.";
+      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-=\+\[\]{}|;:'",.<>\?\/])/.test(formData.password)) {
+        newErrors.password = "Debe contener mayúsculas, minúsculas, números y símbolos.";
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        let value = e.target.value;
+        if (e.target.id === 'dni' || e.target.id === 'tarjeta_sanitaria') {
+        value = value.toUpperCase();
+    }
+        setFormData((prev) => ({ ...prev, [e.target.id]: value }));
     };
     const togglePreference = (dayKey: DiaSemana, shiftValue: Turno) => {
         setFormData(prev => {
@@ -63,9 +103,13 @@ export const Register = () => {
     const handleFormSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (step === 1) {
-        setStep(2);
+        if (validateStep1()) {
+          setStep(2);
+        }
       } else if (step === 2) {
-        setStep(3);
+        if (validateStep2()) {
+          setStep(3);
+        }
       } else {
         setIsLoading(true);
         console.log("JSON listo para la BBDD:", JSON.stringify(formData, null, 2));
@@ -86,7 +130,7 @@ export const Register = () => {
             alert(`Error: ${errorMessage}`);
         }
       }
-};
+    };
 
     return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans sm:px-6 lg:px-8 py-10">
@@ -155,9 +199,9 @@ export const Register = () => {
               <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Input name="name" id="name" label="Nombre completo" placeholder="Juan Pérez" icon={<User className="w-5 h-5"/>} value={formData.name} onChange={handleChange} required />
                 
-                <Input name="dni" id="dni" label="DNI" placeholder="12345678Z" icon={<IdCard className="w-5 h-5"/>} value={formData.dni} onChange={handleChange} required />
+                <Input name="dni" id="dni" label="DNI" placeholder="12345678Z" icon={<IdCard className="w-5 h-5"/>} value={formData.dni} onChange={handleChange} error={errors.dni} required />
                 <div className="pt-2">
-                <Input name="tarjeta_sanitaria" id="tarjeta_sanitaria" label="Tarjeta sanitaria" placeholder="123456789" icon={<CreditCard className="w-5 h-5"/>} value={formData.tarjeta_sanitaria} onChange={handleChange} required />
+                <Input name="tarjeta_sanitaria" id="tarjeta_sanitaria" label="Tarjeta sanitaria" placeholder="123456789" icon={<CreditCard className="w-5 h-5"/>} value={formData.tarjeta_sanitaria} onChange={handleChange} error={errors.tarjeta_sanitaria} required />
                 <p className="mt-2 text-xs text-slate-500 flex items-center gap-1">
                     <InfoIcon className="w-3 h-3" /> Lo encontrarás en el anverso de tu tarjeta sanitaria.
                   </p>
@@ -174,11 +218,11 @@ export const Register = () => {
 
             {step === 2 && (
               <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <Input name="email" id="email" label="Correo electrónico" placeholder="juan@ejemplo.com" icon={<Mail className="w-5 h-5"/>} value={formData.email} onChange={handleChange} required />
-                <Input name="phone" id="phone" type="tel" label="Teléfono móvil" placeholder="+34 600 000 000" icon={<Phone className="w-5 h-5"/>} value={formData.phone} onChange={handleChange} required />
+                <Input name="email" id="email" label="Correo electrónico" placeholder="juan@ejemplo.com" icon={<Mail className="w-5 h-5"/>} onChange={handleChange} error={errors.email} required />
+                <Input name="phone" id="phone" type="tel" label="Teléfono móvil" placeholder="+34 600 000 000" icon={<Phone className="w-5 h-5"/>} value={formData.phone} onChange={handleChange} error={errors.phone} required />
 
                 <div className="pt-2">
-                  <Input name="password" id="password" type="password" label="Contraseña" placeholder="••••••••" icon={<Lock className="w-5 h-5"/>} value={formData.password} onChange={handleChange} required />
+                  <Input name="password" id="password" type="password" label="Contraseña" placeholder="••••••••" icon={<Lock className="w-5 h-5"/>} value={formData.password} onChange={handleChange} error={errors.password} required />
                   <p className="mt-2 text-xs text-slate-500 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" /> Mínimo 8 caracteres, números y símbolos.
                   </p>

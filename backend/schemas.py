@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from enum import Enum
 from models import EstadoCita
@@ -15,14 +15,37 @@ class SolicitudCita(BaseModel):
     lista_espera: bool = False
 
 class PacienteCreate(BaseModel):
-    email: str
-    name: str
-    password: str
-    phone: str
-    dni: str
-    birth_date: str
-    tarjeta_sanitaria: str
+    email: EmailStr
+    name: str = Field(..., min_length=2, max_length=100)
+    phone: str = Field(..., pattern=r"^(?:\+34|0034)?[6789]\d{8}$")
+    dni: str = Field(..., pattern=r"^\d{8}[A-Za-z]$")
+    birth_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    tarjeta_sanitaria: str = Field(..., pattern=r"^[A-Z]{2} \d{10}$")
+    password: str = Field(..., min_length=8)
     preferencias_horarias: dict
+
+    @field_validator('password')
+    @classmethod
+    def validar_password(cls, v):
+        if not any(c.islower() for c in v):
+            raise ValueError("La contraseña debe contener al menos una letra minúscula")
+        if not any(c.isupper() for c in v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/" for c in v):
+            raise ValueError("La contraseña debe contener al menos un carácter especial")
+        return v
+
+    @field_validator('dni')
+    @classmethod
+    def validar_letra_dni(cls, v):
+        letras = "TRWAGMYFPDXBNJZSQVHLCKE"
+        numero = int(v[:-1])
+        letra_esperada = letras[numero % 23]
+        if v[-1].upper() != letra_esperada:
+            raise ValueError('La letra del DNI no es correcta')
+        return v.upper()
 
 class DoctorCreate(BaseModel):
     email: str
