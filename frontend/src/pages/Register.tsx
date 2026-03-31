@@ -77,7 +77,7 @@ export const Register = () => {
 
           setIsLoading(false);
           alert('¡Registro completado con éxito!');
-          navigate('/');
+          navigate('/login');
           
         } catch (error: any) {
             console.error('Error durante el registro:', error);
