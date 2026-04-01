@@ -432,15 +432,30 @@ def update_current_patient_info(updated_info: PacienteCreate, current_user: Usua
         "tarjeta_sanitaria": paciente.tarjeta_sanitaria,
         "preferencias_horarias": paciente.preferencias_horarias
     }
-    
-@app.get("/api/citas/{cita_id}")
-def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
-    cita = db.query(Cita).filter(Cita.id == cita_id).first()
-    if not cita:
-        raise HTTPException(status_code=404, detail="Cita no encontrada")
-    if cita.paciente_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
-    return cita
+@app.get("/api/citas/proximas")
+def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    hoy = get_today()
+    one_week_later = hoy + datetime.timedelta(days=7)
+    citas_proximas = db.query(Cita).filter(
+        Cita.paciente_id == current_user.id,
+        Cita.fecha_hora >= hoy.isoformat(),
+        Cita.fecha_hora <= one_week_later.isoformat(),
+        Cita.estado != "cancelada"
+    ).order_by(Cita.fecha_hora).all()
+    info_citas = []
+    for cita in citas_proximas:
+        medico = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
+        print(medico)
+        info_citas.append({
+            "id": cita.id,
+            "fecha_hora": cita.fecha_hora,
+            "especialidad": cita.especialidad,
+            "motivo": cita.motivo,
+            "estado": cita.estado,
+            "medico": medico.name,
+            "consulta": medico.consulta
+        })
+    return info_citas[:3]
 
 @app.post("/api/volantes/{cita_id}")
 def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
@@ -556,14 +571,12 @@ def obtener_perfil_usuario(db: Session = Depends(get_db), current_user: Usuario 
         "email": current_user.email,
         "rol": current_user.rol
     }
-@app.get("/api/citas/proximas")
-def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
-    hoy = get_today()
-    one_week_later = hoy + datetime.timedelta(days=7)
-    citas_proximas = db.query(Cita).filter(
-        Cita.paciente_id == current_user.id,
-        Cita.fecha_hora >= hoy.isoformat(),
-        Cita.fecha_hora <= one_week_later.isoformat(),
-        Cita.estado != "cancelada"
-    ).order_by(Cita.fecha_hora).all()
-    return citas_proximas
+    
+@app.get("/api/citas/{cita_id}")
+def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    if cita.paciente_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
+    return cita
