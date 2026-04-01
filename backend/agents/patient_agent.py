@@ -100,6 +100,7 @@ class PatientAgent(Agent):
                 datos_reasignacion = json.loads(msg_gestor.body)
                 timeout = datos_reasignacion.get("timeout", 3600)
                 cita_id = datos_reasignacion.get("cita_id")
+                nueva_fecha_hora = datos_reasignacion.get("fecha_hora")
 
                 db_session = SessionLocal()
                 try:
@@ -107,6 +108,7 @@ class PatientAgent(Agent):
                     if cita:
                         estado_original = cita.estado
                         cita.estado = "pendiente_aceptacion"
+                        cita.fecha_hora_propuesta = nueva_fecha_hora
                         db_session.commit()
 
                         msg_humano = await self.receive(timeout=timeout)
@@ -119,6 +121,7 @@ class PatientAgent(Agent):
                                 respuesta_al_gestor.set_metadata("performative", "accept-proposal")
                             else:
                                 respuesta_al_gestor.set_metadata("performative", "reject-proposal")
+                                cita.fecha_hora_propuesta = None
                                 cita.estado = estado_original
                                 db_session.commit()
                         else:

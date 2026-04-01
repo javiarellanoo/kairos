@@ -10,9 +10,13 @@ interface ProposalCardProps {
 
 export const ProposalCard: React.FC<ProposalCardProps> = ({ appointment, onResolve }) => {
   const dateObj = new Date(appointment.fecha_hora);
+  const dateObjPropuesta = new Date(appointment.fecha_hora_propuesta);
   const day = dateObj.getDate();
   const month = dateObj.toLocaleString('es-ES', { month: 'short' }).toUpperCase();
   const time = dateObj.toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const dayPropuesta = dateObjPropuesta.getDate();
+  const monthPropuesta = dateObjPropuesta.toLocaleString('es-ES', { month: 'short' }).toUpperCase();
+  const timePropuesta = dateObjPropuesta.toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
   const handleDecision = async (decision: 'aceptar' | 'rechazar') => {
     try {
@@ -42,7 +46,8 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ appointment, onResol
       <div className="bg-[#2d4b9f] rounded-2xl p-4 sm:p-5 mt-5 flex items-center justify-between relative overflow-hidden">
         <div className="text-center relative z-10 flex-1">
           <p className="text-xs sm:text-sm font-medium text-blue-200 mb-1">Original</p>
-          <p className="text-lg sm:text-2xl font-black text-white">N/A</p>
+                    <p className="text-lg sm:text-2xl font-black text-white">{day} {month}</p>
+          <p className="text-xs sm:text-sm text-blue-200 mt-1">{time}h</p>
         </div>
         
         <div className="relative z-10 px-2 sm:px-4">
@@ -51,8 +56,8 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ appointment, onResol
 
         <div className="text-center relative z-10 flex-1">
           <p className="text-xs sm:text-sm font-medium text-[#06b6d4] mb-1">Nuevo Hueco</p>
-          <p className="text-lg sm:text-2xl font-black text-white">{day} {month}</p>
-          <p className="text-xs sm:text-sm text-blue-200 mt-1">{time}h</p>
+          <p className="text-lg sm:text-2xl font-black text-white">{dayPropuesta} {monthPropuesta}</p>
+          <p className="text-xs sm:text-sm text-blue-200 mt-1">{timePropuesta}h</p>
         </div>
       </div>
 

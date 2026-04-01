@@ -7,6 +7,7 @@ export interface CitaType {
   estado: string;
   medico: string;
   consulta: string;
+  fecha_hora_propuesta?: string | null;
 }
 
 interface AppointmentCardProps {
@@ -20,7 +21,6 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment })
   const time = dateObj.toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
   const isConfirmed = appointment.estado === 'confirmada';
-  
   return (
     <div className="flex items-center gap-3 sm:gap-4 rounded-[2rem] border border-slate-900 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0">
       <div className="flex flex-col items-center justify-center rounded-[1.5rem] bg-[#f1f5f9] min-w-[4.5rem] sm:min-w-[5.5rem] h-[4.5rem] sm:h-[5.5rem] shrink-0">

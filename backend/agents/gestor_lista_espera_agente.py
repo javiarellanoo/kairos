@@ -106,6 +106,7 @@ class GestorListaEsperaAgente(Agent):
                         candidato.estado = "confirmada"
                         candidato.medico_id = doctor_id
                         candidato.fecha_hora = fecha_hora
+                        candidato.fecha_hora_propuesta = None
                         db_session.commit()
 
                         if fecha_antigua is not None:

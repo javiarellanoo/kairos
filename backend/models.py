@@ -145,6 +145,7 @@ class Cita(Base):
     paciente_id = Column(UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False)
     medico_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=False)
     fecha_hora = Column(String, nullable=False)
+    fecha_hora_propuesta = Column(String, nullable=True)
     especialidad = Column(String, ForeignKey("especialidades.name"), nullable=False)
     motivo = Column(String)
     prioridad_peso = Column(Float)
