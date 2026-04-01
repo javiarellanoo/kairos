@@ -1,5 +1,5 @@
 // src/pages/Landing.tsx
-import { Activity, Bell, CalendarDays, Cog, User, LogOut, ChevronDown, LucideBellDot, Plus, Bot, ArrowRight, Check } from 'lucide-react';
+import { Activity, Bell, CalendarDays, Cog, User, LogOut, ChevronDown, ChevronLeft, ChevronRight, LucideBellDot, Plus, Bot, ArrowRight, Check } from 'lucide-react';
 import React from 'react';
 import { Button } from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
@@ -14,12 +14,22 @@ export const PacienteHome = () => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [upcomingAppointments, setUpcomingAppointments] = React.useState<CitaType[]>([]);
     const [possibleAppointments, setPossibleAppointments] = React.useState<CitaType[]>([]);
+    const [currentProposalIndex, setCurrentProposalIndex] = React.useState(0);
+
+    const nextProposal = () => {
+        setCurrentProposalIndex((prev) => (prev + 1) % possibleAppointments.length);
+    };
+
+    const prevProposal = () => {
+        setCurrentProposalIndex((prev) => (prev - 1 + possibleAppointments.length) % possibleAppointments.length);
+    };
 
     const fetchAppointments = async () => {
         const possible = await getPossibleAppointments();
         setPossibleAppointments(possible);
         const appointments = await getUpcomingAppointments();
         setUpcomingAppointments(appointments);
+        setCurrentProposalIndex(0);
     };
 
     React.useEffect(() => {
@@ -111,10 +121,10 @@ export const PacienteHome = () => {
         </div>
       </header>
 
-      <main className="relative flex-1 overflow-y-auto bg-transparent px-4 pb-20 pt-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl relative z-10 w-full flex flex-col gap-6 sm:gap-8">
+      <main className="relative flex-1 overflow-hidden bg-transparent px-4 pb-0 pt-24 sm:px-6 lg:px-8 flex flex-col">
+        <div className="mx-auto max-w-3xl relative z-10 w-full flex flex-col h-full gap-6 sm:gap-8">
           
-          <div>
+          <div className="shrink-0">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               Tus Próximas Citas
             </h1>
@@ -123,39 +133,72 @@ export const PacienteHome = () => {
             </p>
           </div>
 
-          {/* Proposals List */}
+          {/* Proposals List (Single card with arrows) */}
           {possibleAppointments.length > 0 && (
-            <div className="flex flex-col gap-4">
-              {possibleAppointments.map((cita) => (
-                <ProposalCard 
-                  key={`prop_${cita.id}`} 
-                  appointment={cita} 
-                  onResolve={fetchAppointments} 
-                />
-              ))}
+            <div className="relative flex items-center justify-center shrink-0 w-full mb-4 sm:mb-2">
+              {possibleAppointments.length > 1 && (
+                <button 
+                  onClick={prevProposal}
+                  className="absolute left-[-14px] sm:left-[-24px] z-20 p-1.5 sm:p-2 rounded-full bg-white shadow-lg border border-slate-100 text-slate-400 hover:text-slate-800 transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              
+              <div className="w-full">
+                {possibleAppointments[currentProposalIndex] && (
+                  <ProposalCard 
+                    appointment={possibleAppointments[currentProposalIndex]} 
+                    onResolve={fetchAppointments} 
+                  />
+                )}
+              </div>
+
+              {possibleAppointments.length > 1 && (
+                <button 
+                  onClick={nextProposal}
+                  className="absolute right-[-14px] sm:right-[-24px] z-20 p-1.5 sm:p-2 rounded-full bg-white shadow-lg border border-slate-100 text-slate-400 hover:text-slate-800 transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Pagination Dots */}
+              {possibleAppointments.length > 1 && (
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 items-center">
+                  {possibleAppointments.map((_, idx) => (
+                    <div 
+                      key={`dot_${idx}`} 
+                      className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentProposalIndex ? 'w-4 bg-slate-400' : 'w-1.5 bg-slate-200'}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Appointments List */}
-          <div className="flex flex-col gap-3 sm:gap-4 mt-2">
-            {upcomingAppointments.length > 0 ? (
-              upcomingAppointments.map((cita) => (
-                <AppointmentCard key={`cita_${cita.id}`} appointment={cita} />
-              ))
-            ) : (
-              <p className="text-slate-500 text-center py-10 bg-slate-100/50 rounded-3xl border border-dashed border-slate-300">
-                No tienes citas próximas.
-              </p>
-            )}
+          {/* Appointments List (Vertical internal scroll) */}
+          <div className="relative flex-1 overflow-y-auto pb-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex flex-col gap-3 sm:gap-4 mt-2">
+              {upcomingAppointments.length > 0 ? (
+                upcomingAppointments.map((cita) => (
+                  <AppointmentCard key={`cita_${cita.id}`} appointment={cita} />
+                ))
+              ) : (
+                <p className="text-slate-500 text-center py-10 bg-slate-100/50 rounded-3xl border border-dashed border-slate-300">
+                  No tienes citas próximas.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         <Button
           variant="options_dark"
-          className="fixed bottom-20 right-4 sm:bottom-20 sm:right-8 z-50 shadow-lg shadow-black/20 hover:-translate-y-1 transition-transform"
+          className="fixed bottom-20 right-4 sm:bottom-20 sm:right-8 z-50 shadow-xl shadow-black/20 hover:-translate-y-1 transition-transform px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-bold rounded-full flex items-center gap-3"
           onClick={() => navigate('/nueva-cita')}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
           Nueva cita
         </Button>
       </main>

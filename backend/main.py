@@ -445,7 +445,6 @@ def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario 
     info_citas = []
     for cita in citas_proximas:
         medico = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
-        print(medico)
         info_citas.append({
             "id": cita.id,
             "fecha_hora": cita.fecha_hora,

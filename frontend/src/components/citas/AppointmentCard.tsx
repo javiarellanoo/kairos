@@ -22,8 +22,8 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment })
 
   const isConfirmed = appointment.estado === 'confirmada';
   return (
-    <div className="flex items-center gap-3 sm:gap-4 rounded-[2rem] border border-slate-900 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0">
-      <div className="flex flex-col items-center justify-center rounded-[1.5rem] bg-[#f1f5f9] min-w-[4.5rem] sm:min-w-[5.5rem] h-[4.5rem] sm:h-[5.5rem] shrink-0">
+    <div className="flex items-center gap-3 sm:gap-4 rounded-4xl border-2 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0 hover:-translate-y-1 transition-transform">
+      <div className="flex flex-col items-center justify-center rounded-2xl bg-[#f1f5f9] min-w-[4.5rem] sm:min-w-[5.5rem] h-[4.5rem] sm:h-[5.5rem] shrink-0">
         <span className="text-lg sm:text-xl font-black text-slate-900 leading-none">{day}</span>
         <span className="text-[10px] sm:text-xs font-semibold text-slate-600 mt-1">{month}</span>
       </div>
@@ -36,11 +36,11 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment })
         
         <div className="shrink-0 text-left sm:text-right">
           {isConfirmed ? (
-            <span className="inline-flex items-center rounded-lg bg-[#dafbab] px-4 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm font-bold text-[#2c5f15]">
+            <span className="inline-flex items-center rounded-full bg-[#dafbab] px-4 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm font-bold text-[#2c5f15]">
               Confirmada
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-lg bg-[#fef0c7] px-4 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm font-bold text-[#865910]">
+            <span className="inline-flex items-center rounded-full bg-[#fef0c7] px-4 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm font-bold text-[#865910]">
               En lista de espera
             </span>
           )}
