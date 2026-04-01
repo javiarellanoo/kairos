@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from spade.agent import Agent
-from spade.behaviour import CyclicBehaviour
+from spade.behaviour import CyclicBehaviour, OneShotBehaviour
 from spade.message import Message
 from sqlalchemy import asc, desc, or_
 from agents import PatientAgent
@@ -10,15 +10,27 @@ from database import SessionLocal
 from models import Cita, Doctor, Paciente
 
 class GestorListaEsperaAgente(Agent):
-    class GestionarListaEsperaBehaviour(CyclicBehaviour):
+    class DispatcherBehaviour(CyclicBehaviour):
         async def run(self):
-            msg = await self.receive(timeout=10)
+            msg = await self.receive(timeout=5)
             if msg:
                 print(f"Agente {self.agent.name} ha recibido un mensaje: {msg.body}")
                 try:
-                    datos_hueco = json.loads(msg.body)
-                    doctor_id = datos_hueco.get("doctor_id")
-                    fecha_hora = datos_hueco.get("fecha_hora")
+                    datos = json.loads(msg.body)
+                    negociador = self.agent.GestionarListaEsperaBehaviour(datos_hueco=datos)
+                    self.agent.add_behaviour(negociador)
+                
+                except Exception as e:
+                    print(f"Error al procesar el mensaje: {e}")
+
+    class GestionarListaEsperaBehaviour(OneShotBehaviour):
+        def __init__(self, datos_hueco):
+            super().__init__()
+            self.datos_hueco = datos_hueco
+        async def run(self):
+                try:
+                    doctor_id = self.datos_hueco.get("doctor_id")
+                    fecha_hora = self.datos_hueco.get("fecha_hora")
                     db_session = SessionLocal()
 
                     await self.iniciar_reasignacion(doctor_id, fecha_hora, db_session)
@@ -131,5 +143,5 @@ class GestorListaEsperaAgente(Agent):
 
     async def setup(self):
         print(f"Agente {self.name} se ha iniciado.")
-        b = self.GestionarListaEsperaBehaviour()
+        b = self.DispatcherBehaviour()
         self.add_behaviour(b)

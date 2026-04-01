@@ -34,11 +34,11 @@ async def test_signup_paciente_mayor_edad(client):
     response = await client.post("/api/signup", json={
     "email": "test@gmail.com",
     "name": "Test User",
-    "password": "test_password",
-    "phone": "111111111",
-    "dni": "22222222N",
+    "password": "test_Password1!",
+    "phone": "611111111",
+    "dni": "53585090N",
     "birth_date": "2004-02-27",
-    "tarjeta_sanitaria": "AN 222222222",
+    "tarjeta_sanitaria": "AN 1234567890",
     "preferencias_horarias": {
         "lunes": ["M"], "martes": ["M", "T"], "miercoles": ["T"], "jueves": ["M", "T"], "viernes": ["M", "T"]
     }
@@ -50,11 +50,11 @@ async def test_signup_paciente_menor_edad(client):
     response = await client.post("/api/signup", json={
     "email": "test@gmail.com",
     "name": "Test User",
-    "password": "test_password",
-    "phone": "111111111",
-    "dni": "33333333N",
+    "password": "test_Password1!",
+    "phone": "611111111",
+    "dni": "53585090N",
     "birth_date": "2024-02-27",
-    "tarjeta_sanitaria": "AN 333333333",
+    "tarjeta_sanitaria": "AN 1234567890",
     "preferencias_horarias": {
         "lunes": ["M"], "martes": ["M", "T"], "miercoles": ["T"], "jueves": ["M", "T"], "viernes": ["M", "T"]
     }
@@ -66,11 +66,11 @@ async def test_signup_email_duplicado(client):
     response = await client.post("/api/signup", json={
     "email": "luissalo569@fakeemail.com",
     "name": "Test User",
-    "password": "test_password",
-    "phone": "111111111",
-    "dni": "44444444N",
+    "password": "test_Password1!",
+    "phone": "611111111",
+    "dni": "53585090N",
     "birth_date": "2024-02-27",
-    "tarjeta_sanitaria": "AN 444444444",
+    "tarjeta_sanitaria": "AN 1234567890",
     "preferencias_horarias": {
         "lunes": ["M"], "martes": ["M", "T"], "miercoles": ["T"], "jueves": ["M", "T"], "viernes": ["M", "T"]
     }
@@ -82,11 +82,11 @@ async def test_signup_dni_duplicado(client):
     response = await client.post("/api/signup", json={
     "email": "test2@gmail.com",
     "name": "Test User 2",
-    "password": "test_password",
-    "phone": "222222222",
+    "password": "test_Password1!",
+    "phone": "622222222",
     "dni": "04248696K",
     "birth_date": "2024-02-27",
-    "tarjeta_sanitaria": "AN 555555555",
+    "tarjeta_sanitaria": "AN 1234567890",
     "preferencias_horarias": {
         "lunes": ["M"], "martes": ["M", "T"], "miercoles": ["T"], "jueves": ["M", "T"], "viernes": ["M", "T"]
     }
@@ -98,9 +98,9 @@ async def test_signup_tarjeta_duplicada(client):
     response = await client.post("/api/signup", json={
     "email": "test3@gmail.com",
     "name": "Test User 3",
-    "password": "test_password",
-    "phone": "333333333",
-    "dni": "66666666N",
+    "password": "test_Password1!",
+    "phone": "633333333",
+    "dni": "53585090N",
     "birth_date": "2024-02-27",
     "tarjeta_sanitaria": "AN 7682198194",
     "preferencias_horarias": {
@@ -172,12 +172,12 @@ async def test_actualizar_perfil_paciente(client):
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.put("/api/pacientes/me", json={
         "email": "luissalo569@fakeemail.com",
-        "password": "test_password",
+        "password": "test_Password1!",
         "name": "Nuevo Nombre",
-        "phone": "777777777",
+        "phone": "677777777",
         "birth_date": "1990-01-01",
         "tarjeta_sanitaria": "AN 2222222221",
-        "dni": "11111111K",
+        "dni": "11111111H",
         "preferencias_horarias": {
             "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
         }
@@ -185,7 +185,7 @@ async def test_actualizar_perfil_paciente(client):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Nuevo Nombre"
-    assert data["phone"] == "777777777"
+    assert data["phone"] == "677777777"
     assert data["preferencias_horarias"] == {
         "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
     }
@@ -195,11 +195,11 @@ async def test_actualizar_perfil_dni_duplicado(client):
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.put("/api/pacientes/me", json={
         "email": "luissalo569@fakeemail.com",
-        "password": "test_password",
+        "password": "test_Password1!",
         "name": "Nuevo Nombre",
-        "phone": "777777777",
+        "phone": "677777777",
         "birth_date": "1990-01-01",
-        "tarjeta_sanitaria": "AN 111111110",
+        "tarjeta_sanitaria": "AN 1111111110",
         "dni": "62664196Y",
         "preferencias_horarias": {
             "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
@@ -212,12 +212,12 @@ async def test_actualizar_perfil_tarjeta_duplicada(client):
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.put("/api/pacientes/me", json={
         "email": "luissalo569@fakeemail.com",
-        "password": "test_password",
+        "password": "test_Password1!",
         "name": "Nuevo Nombre",
-        "phone": "777777777",
+        "phone": "677777777",
         "birth_date": "1990-01-01",
         "tarjeta_sanitaria": "AN 5716382928",
-        "dni": "62664196W",
+        "dni": "62664196Y",
         "preferencias_horarias": {
             "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
         }
@@ -229,12 +229,12 @@ async def test_editar_perfil_email_duplicado(client):
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.put("/api/pacientes/me", json={
         "email": "aitasala693@fakeemail.com",
-        "password": "test_password",
+        "password": "test_Password1!",
         "name": "Nuevo Nombre",
-        "phone": "777777777",
+        "phone": "677777777",
         "birth_date": "1990-01-01",
         "tarjeta_sanitaria": "AN 5716382928",
-        "dni": "62664196W",
+        "dni": "62664196Y",
         "preferencias_horarias": {
             "lunes": ["T"], "martes": ["M"], "miercoles": ["M", "T"], "jueves": ["T"], "viernes": ["M"]
         }
