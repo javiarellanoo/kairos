@@ -2,12 +2,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { apiClient } from '../api/client';
 
 export const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,15 +30,23 @@ export const Login = () => {
     });
 
     const token = response.data.access_token;
-    localStorage.setItem('token', token);
-    console.log('Token recibido:', token);
+      const userRole = await login(token);
+      
+      if (userRole === 'paciente') {
+        navigate('/home');
+      } else if (userRole === 'doctor') {
+        navigate('/doctor-dashboard');
+      } else if (userRole === 'admin') {
+        navigate('/admin-panel');
+      } else {
+        navigate('/'); 
+      }
 
-    setIsLoading(false);
-    navigate('/');
-    } catch (error) {
-        console.error('Error durante el login:', error);
-        setIsLoading(false);
-        alert('Error al iniciar sesión. Por favor, verifica tus credenciales e inténtalo de nuevo.');
+    } catch (error: any) {
+      console.error("Error en el login:", error);
+      alert(error.response?.data?.detail || "Error al iniciar sesión. Revisa tus credenciales.");
+    } finally {
+      setIsLoading(false);
     }
   };
 

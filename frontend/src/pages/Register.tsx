@@ -80,7 +80,10 @@ export const Register = () => {
         let value = e.target.value;
         if (e.target.id === 'dni' || e.target.id === 'tarjeta_sanitaria') {
         value = value.toUpperCase();
-    }
+        }
+        if (e.target.id === 'phone') {
+            value = value.replace(/[^+\d]/g, '');
+        }
         setFormData((prev) => ({ ...prev, [e.target.id]: value }));
     };
     const togglePreference = (dayKey: DiaSemana, shiftValue: Turno) => {
@@ -112,7 +115,6 @@ export const Register = () => {
         }
       } else {
         setIsLoading(true);
-        console.log("JSON listo para la BBDD:", JSON.stringify(formData, null, 2));
 
        try {
           const response = await apiClient.post('/signup', formData);

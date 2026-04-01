@@ -547,3 +547,23 @@ def actualizar_estado_cita(cita_id: int, nuevo_estado: EstadoCitaUpdate, db: Ses
     db.refresh(cita)
 
     return {"mensaje": "Estado de la cita actualizado exitosamente", "cita": cita}
+
+@app.get("/api/users/me")
+def obtener_perfil_usuario(db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "nombre": current_user.name,
+        "email": current_user.email,
+        "rol": current_user.rol
+    }
+@app.get("/api/citas/proximas")
+def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    hoy = get_today()
+    one_week_later = hoy + datetime.timedelta(days=7)
+    citas_proximas = db.query(Cita).filter(
+        Cita.paciente_id == current_user.id,
+        Cita.fecha_hora >= hoy.isoformat(),
+        Cita.fecha_hora <= one_week_later.isoformat(),
+        Cita.estado != "cancelada"
+    ).order_by(Cita.fecha_hora).all()
+    return citas_proximas

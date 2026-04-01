@@ -13,6 +13,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       outline: "border-2 border-slate-200 bg-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50",
       ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
       dark: "bg-[var(--color-accent)] text-white hover:brightness-95 shadow-sm",
+      options: "bg-transparent text-slate-700 text-sm font-medium border-2 border-accent rounded-full px-3 ",
+      options_dark: "bg-accent text-white text-sm font-medium border-2 border-accent rounded-full px-3 "
     };
 
     return (
