@@ -50,7 +50,7 @@ def load_data():
     doctor_id_by_email = {}
     doctors_by_specialty = {}
     doctor_specialty_by_id = {}
-    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv', skipinitialspace=True)
+    df_doc = pd.read_csv(DATA_DIR / 'doctors.csv', skipinitialspace=True, dtype={'phone': str})
     for _, row in df_doc.iterrows():
         agenda_json = json.loads(row['agenda']) if isinstance(row['agenda'], str) else row['agenda']
         did = uuid.uuid4()
@@ -77,7 +77,7 @@ def load_data():
     paciente_id_by_dni = {}
     paciente_id_by_email = {}
     paciente_birthdate = {}
-    df_pat = pd.read_csv(DATA_DIR / 'patients.csv', skipinitialspace=True)
+    df_pat = pd.read_csv(DATA_DIR / 'patients.csv', skipinitialspace=True, dtype={'phone': str})
     for _, row in df_pat.iterrows():
         prefs = json.loads(row['preferencias_horarias']) if isinstance(row['preferencias_horarias'], str) else row['preferencias_horarias']
         pid = uuid.uuid4()
