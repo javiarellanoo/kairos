@@ -1,4 +1,4 @@
-// src/pages/PerfilPaciente.tsx
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Phone, Check, CalendarDays, Mail, Save, CreditCard, Hash, Lock, EyeOff, Eye } from 'lucide-react';
