@@ -12,7 +12,7 @@ from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
-from schemas import DecisionAdelanto, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DuracionCitaUpdate, EstadoCitaUpdate
+from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DuracionCitaUpdate, EstadoCitaUpdate
 from spade.message import Message
 import json
 from spade.agent import Agent
@@ -404,37 +404,19 @@ def get_current_patient_info(current_user: Usuario = Depends(get_is_paciente), d
     }
 
 @app.put("/api/pacientes/me")
-def update_current_patient_info(updated_info: PacienteCreate, current_user: Usuario = Depends(get_is_paciente), db: Session = Depends(get_db)):
+def update_current_patient_info(updated_info: PacienteUpdate, current_user: Usuario = Depends(get_is_paciente), db: Session = Depends(get_db)):
     paciente = db.query(Paciente).filter(Paciente.id == current_user.id).first()
-    
-    if updated_info.email and updated_info.email != paciente.email:
-        existing_user = db.query(Usuario).filter(Usuario.email == updated_info.email).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="El email ya está registrado")
-        paciente.email = updated_info.email
-    
-    if updated_info.dni and updated_info.dni != paciente.dni:
-        dni_hash = hash_searchable_field(updated_info.dni)
-        existing_dni = db.query(Paciente).filter(Paciente.dni_hash == dni_hash).first()
-        if existing_dni:
-            raise HTTPException(status_code=400, detail="El DNI ya está registrado")
-        paciente.dni = updated_info.dni
-    
-    if updated_info.tarjeta_sanitaria and updated_info.tarjeta_sanitaria != paciente.tarjeta_sanitaria:
-        tarjeta_hash = hash_searchable_field(updated_info.tarjeta_sanitaria)
-        existing_tarjeta = db.query(Paciente).filter(Paciente.tarjeta_sanitaria_hash == tarjeta_hash).first()
-        if existing_tarjeta:
-            raise HTTPException(status_code=400, detail="La tarjeta sanitaria ya está registrada")
-        paciente.tarjeta_sanitaria = updated_info.tarjeta_sanitaria
-    
-    paciente.name = updated_info.name
-    paciente.phone = updated_info.phone
-    paciente.birth_date = updated_info.birth_date
-    paciente.preferencias_horarias = updated_info.preferencias_horarias
 
+    update_data = updated_info.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        if key == "password":
+            paciente.password = get_password_hash(value)
+        else:
+            setattr(paciente, key, value)
     db.commit()
     db.refresh(paciente)
-    
+
     return {
         "email": paciente.email,
         "name": paciente.name,
@@ -444,6 +426,7 @@ def update_current_patient_info(updated_info: PacienteCreate, current_user: Usua
         "tarjeta_sanitaria": paciente.tarjeta_sanitaria,
         "preferencias_horarias": paciente.preferencias_horarias
     }
+
 @app.get("/api/citas/proximas")
 def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
     hoy = get_today()

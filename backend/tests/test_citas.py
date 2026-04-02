@@ -108,7 +108,6 @@ async def test_cita_con_volante_no_existente(client):
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_de_otro_paciente(client):
-    # Volante real de PATIENT_2 (Cardiología, Consumido) — PATIENT_1 no es su dueño
     VOLANTE_PATIENT_2_CARDIOLOGIA = "9c622a08-f3e2-45f6-b02d-640407ca4291"
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.post("/api/nueva-cita", json={
@@ -121,7 +120,6 @@ async def test_cita_con_volante_de_otro_paciente(client):
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_con_especialidad_incompatible(client):
-    # Volante real de PATIENT_2 para Ginecología — se solicita Cardiología → incompatible
     VOLANTE_PATIENT_2_GINECOLOGIA = "caafc34a-75ff-492b-8045-e5af9ad2854f"
     headers = await get_auth_headers(client, PATIENT_2)
     response = await client.post("/api/nueva-cita", json={
@@ -134,7 +132,6 @@ async def test_cita_con_volante_con_especialidad_incompatible(client):
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_caducado_o_procesado(client):
-    # Volante real de PATIENT_2 para Cardiología con estado Consumido → ya procesado
     VOLANTE_PATIENT_2_CARDIOLOGIA_CONSUMIDO = "9c622a08-f3e2-45f6-b02d-640407ca4291"
     headers = await get_auth_headers(client, PATIENT_2)
     response = await client.post("/api/nueva-cita", json={
@@ -147,7 +144,7 @@ async def test_cita_con_volante_caducado_o_procesado(client):
 
 @pytest.mark.asyncio
 async def test_cita_con_volante_pendiente(client):
-    VOLANTE_PATIENT_1_CARDIOLOGIA_PENDIENTE = "9c622a08-f3e2-45f6-b02d-640407ca4293"  # Volante pendiente real de PATIENT_1 para Cardiología
+    VOLANTE_PATIENT_1_CARDIOLOGIA_PENDIENTE = "9c622a08-f3e2-45f6-b02d-640407ca4293"
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.post("/api/nueva-cita", json={
         "especialidad": "Cardiología",
@@ -162,8 +159,7 @@ async def test_cita_paciente_sin_medico_de_cabecera(client):
 
     sufijo_unico = uuid.uuid4().hex[:8]
     email = f"paciente_sin_medico_{sufijo_unico}@example.com"
-    
-    # Valores aleatorios para que NUNCA choquen
+
     dni_test = f"{sufijo_unico}A"
     tarjeta_test = f"AN-{sufijo_unico}1"
     db = SessionLocal()

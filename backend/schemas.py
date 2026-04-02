@@ -47,6 +47,25 @@ class PacienteCreate(BaseModel):
             raise ValueError('La letra del DNI no es correcta')
         return v.upper()
 
+class PacienteUpdate(BaseModel):
+    phone: Optional[str] = Field(None, pattern=r"^(?:\+34|0034)?[6789]\d{8}$")
+    preferencias_horarias: Optional[dict]
+    password: Optional[str] = Field(None, min_length=8)
+
+    @field_validator('password')
+    @classmethod
+    def validar_password(cls, v):
+        if not any(c.islower() for c in v):
+            raise ValueError("La contraseña debe contener al menos una letra minúscula")
+        if not any(c.isupper() for c in v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("La contraseña debe contener al menos un número")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/" for c in v):
+            raise ValueError("La contraseña debe contener al menos un carácter especial")
+        return v
+
+
 class DoctorCreate(BaseModel):
     email: str
     name: str

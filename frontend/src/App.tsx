@@ -10,6 +10,7 @@ import { AuthProvider } from './context/AuthContext'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CitaDetalle } from './pages/DetallesCita'
 import { NuevaCita } from './pages/NuevaCita'
+import { PerfilPaciente } from './pages/PerfilPaciente'
 
  function App() {
   return (
@@ -37,6 +38,11 @@ import { NuevaCita } from './pages/NuevaCita'
         <Route path="/nueva-cita" element={
           <ProtectedRoute allowedRoles={['paciente']}>
             <NuevaCita />
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-perfil" element={
+          <ProtectedRoute allowedRoles={['paciente']}>
+            <PerfilPaciente />
           </ProtectedRoute>
         } />
       </Routes>
