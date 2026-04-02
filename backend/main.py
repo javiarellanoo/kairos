@@ -600,3 +600,19 @@ def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario 
         "consulta": doctor.consulta
     }
     return info_cita
+
+@app.get("/api/especialidades")
+def get_especialidades(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    es_mayor_de_edad = (get_today() - current_user.birth_date).days >= 18 * 365  
+    especialidades = db.query(Especialidad).all()
+    if not es_mayor_de_edad:
+        especialidades = [esp for esp in especialidades if esp.name != "Medicina General"]
+    else:
+        especialidades = [esp for esp in especialidades if esp.name != "Pediatría"]
+
+    return [{ "nombre": esp.name} for esp in especialidades]
+
+@app.get("/api/volantes/especialidad/{especialidad}")
+def get_volantes_por_especialidad(especialidad: str, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
+    volantes = db.query(Volante).filter(Volante.paciente_id == current_user.id, Volante.estado == "pendiente", Volante.especialidad_destino == especialidad).all()
+    return [{ "id": vol.id, "motivo": vol.motivo_texto } for vol in volantes]

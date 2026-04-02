@@ -24,14 +24,25 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment })
 
   const seeDetails = () => {
     navigate(`/citas/${appointment.id}`);
-
     }
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      seeDetails();
+    }
+  };
 
   const isConfirmed = appointment.estado === 'confirmada';
   const isWaiting = appointment.estado === 'lista_espera';
   const isCancelled = appointment.estado === 'cancelada';
   return (
-    <div className="flex items-center gap-3 sm:gap-4 rounded-4xl border-2 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0 hover:-translate-y-1 transition-transform" onClick={seeDetails}>
+    <div className="flex items-center gap-3 sm:gap-4 rounded-4xl border-2 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0 hover:-translate-y-1 transition-transform focus:ring-2 focus:ring-primary cursor-pointer" 
+    onClick={seeDetails}
+    onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`Ver detalles de la cita de ${appointment.especialidad}`}
+    >
       <div className="flex flex-col items-center justify-center rounded-2xl bg-[#f1f5f9] min-w-[4.5rem] sm:min-w-[5.5rem] h-[4.5rem] sm:h-[5.5rem] shrink-0">
         <span className="text-lg sm:text-xl font-black text-slate-900 leading-none">{day}</span>
         <span className="text-[10px] sm:text-xs font-semibold text-slate-600 mt-1">{month}</span>

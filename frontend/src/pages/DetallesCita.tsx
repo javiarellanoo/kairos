@@ -1,4 +1,3 @@
-// src/pages/CitaDetalle.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Calendar, Stethoscope, UserCircle, MapPin, XCircle, Activity, LucideBellDot, User, ChevronDown, LogOut, NotebookTabs } from 'lucide-react';

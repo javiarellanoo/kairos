@@ -9,6 +9,8 @@ from dependencies import get_today
 from database import SessionLocal
 from models import Cita, Doctor, Paciente
 
+dias_semana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
+
 class GestorListaEsperaAgente(Agent):
     class DispatcherBehaviour(CyclicBehaviour):
         async def run(self):
@@ -46,10 +48,14 @@ class GestorListaEsperaAgente(Agent):
                 return
             
             especialidad_hueco = doctor_cancelacion.especialidad
+            dia_cita = datetime.strptime(fecha_hora, "%Y-%m-%d %H:%M").date()
+            dia_semana = dias_semana[dia_cita.weekday()]
+            turno_cita = "M" if datetime.strptime(fecha_hora, "%Y-%m-%d %H:%M").hour < 14 else "T"
+            preferencias_relevantes = {dia_semana: [turno_cita]}
 
-            query_candidatos = db_session.query(Cita).filter(
+            query_candidatos = db_session.query(Cita).join(Paciente, Cita.paciente_id == Paciente.id).filter(
                 Cita.estado == "lista_espera",
-                or_(Cita.fecha_hora.is_(None), Cita.fecha_hora > fecha_hora))
+                or_(Cita.fecha_hora.is_(None), Cita.fecha_hora > fecha_hora), Paciente.preferencias_horarias.contains(preferencias_relevantes))
             
             if especialidad_hueco in ["Medicina General", "Pediatría"]:
                 query_candidatos = query_candidatos.filter(Cita.medico_id == doctor_id)

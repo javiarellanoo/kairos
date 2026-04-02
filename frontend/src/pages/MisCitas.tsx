@@ -1,4 +1,3 @@
-// src/pages/Landing.tsx
 import { Activity, Bell, CalendarDays, Cog, User, LogOut, ChevronDown, ChevronLeft, ChevronRight, LucideBellDot, Plus, Bot, ArrowRight, Check, Calendar, ArrowLeft } from 'lucide-react';
 import React from 'react';
 import { Button } from '../components/ui/Button';

@@ -64,13 +64,13 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ appointment, onResol
       <div className="mt-5 flex flex-col sm:flex-row gap-3">
         <button 
           onClick={() => handleDecision('rechazar')}
-          className="flex-1 rounded-xl border border-white/20 bg-transparent py-2.5 sm:py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors"
+          className="flex-1 rounded-xl border border-white/20 bg-transparent py-2.5 sm:py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors focus:ring-2 focus:ring-inset focus:ring-white/30 flex items-center justify-center gap-2"
         >
           Rechazar
         </button>
         <button 
           onClick={() => handleDecision('aceptar')}
-          className="flex-1 rounded-xl bg-[#06b6d4] py-2.5 sm:py-3 text-sm font-bold text-slate-900 hover:bg-cyan-300 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-cyan-400/20"
+          className="flex-1 rounded-xl bg-[#06b6d4] py-2.5 sm:py-3 text-sm font-bold text-slate-900 hover:bg-cyan-300 transition-colors focus:ring-2 focus:ring-inset focus:ring-cyan-500 flex items-center justify-center gap-2 shadow-lg shadow-cyan-400/20"
         >
           <Check className="h-4 w-4 sm:h-5 sm:w-5" />
           Aceptar Cambio

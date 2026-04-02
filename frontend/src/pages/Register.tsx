@@ -103,6 +103,13 @@ export const Register = () => {
         });
     };
 
+    const handleGridKeyDown = (e: React.KeyboardEvent, dayKey: DiaSemana, shift: Turno) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      togglePreference(dayKey, shift);
+    }
+  };
+
     const handleFormSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (step === 1) {
@@ -269,20 +276,25 @@ export const Register = () => {
                     <div className="p-3 bg-slate-50 border-r border-slate-200 text-sm font-medium text-slate-700 flex items-center justify-center">
                       Mañana
                     </div>
-                    {DAYS.map(day => {
+                      {DAYS.map(day => {
                       const isSelected = formData.preferencias_horarias[day.key as DiaSemana].includes('M');
                       return (
                         <div 
                           key={`m-${day.key}`}
                           onClick={() => togglePreference(day.key as DiaSemana, 'M')}
+                          onKeyDown={(e) => handleGridKeyDown(e, day.key as DiaSemana, 'M')}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Turno de mañana el ${day.label}. ${isSelected ? 'Seleccionado' : 'No seleccionado'}`}
                           className={cn(
                             "p-3 border-r border-slate-100 last:border-0 cursor-pointer transition-all flex justify-center items-center group",
+                            "focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500",
                             isSelected ? "bg-teal-50" : "hover:bg-slate-50"
                           )}
                         >
                           <div className={cn(
                             "w-6 h-6 rounded-md border flex items-center justify-center transition-all",
-                            isSelected ? "bg-teal-500 border-teal-500 text-white" : "border-slate-300 group-hover:border-teal-300"
+                            isSelected ? "bg-teal-500 border-teal-500 text-white" : "border-slate-300 group-hover:border-teal-500"
                           )}>
                             {isSelected && <Check className="w-4 h-4" />}
                           </div>
@@ -302,8 +314,13 @@ export const Register = () => {
                         <div 
                           key={`t-${day.key}`}
                           onClick={() => togglePreference(day.key as DiaSemana, 'T')}
+                          onKeyDown={(e) => handleGridKeyDown(e, day.key as DiaSemana, 'T')}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Turno de tarde el ${day.label}. ${isSelected ? 'Seleccionado' : 'No seleccionado'}`}
                           className={cn(
                             "p-3 border-r border-slate-100 last:border-0 cursor-pointer transition-all flex justify-center items-center group",
+                            "focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500",
                             isSelected ? "bg-blue-50" : "hover:bg-slate-50"
                           )}
                         >
