@@ -355,8 +355,20 @@ def obtener_citas_adelantos(db: Session = Depends(get_db), current_user: Usuario
 
 @app.get("/api/mis-citas")
 def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
-    citas = db.query(Cita).filter(Cita.paciente_id == current_user.id).all()
-    return citas
+    citas = db.query(Cita).filter(Cita.paciente_id == current_user.id, Cita.estado != "cancelada", Cita.estado != "pendiente_aceptacion").all()
+    info_citas = []
+    for cita in citas:
+        medico = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
+        info_citas.append({
+            "id": cita.id,
+            "fecha_hora": cita.fecha_hora,
+            "especialidad": cita.especialidad,
+            "motivo": cita.motivo,
+            "estado": cita.estado,
+            "medico": medico.name,
+            "consulta": medico.consulta
+        })
+    return info_citas
 
 @app.get("/api/agenda-doctor")
 async def agenda_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
@@ -435,11 +447,9 @@ def update_current_patient_info(updated_info: PacienteCreate, current_user: Usua
 @app.get("/api/citas/proximas")
 def obtener_citas_proximas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
     hoy = get_today()
-    one_week_later = hoy + datetime.timedelta(days=7)
     citas_proximas = db.query(Cita).filter(
         Cita.paciente_id == current_user.id,
         Cita.fecha_hora >= hoy.isoformat(),
-        Cita.fecha_hora <= one_week_later.isoformat(),
         Cita.estado != "cancelada"
     ).order_by(Cita.fecha_hora).all()
     info_citas = []
@@ -578,4 +588,15 @@ def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario 
         raise HTTPException(status_code=404, detail="Cita no encontrada")
     if cita.paciente_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
-    return cita
+    
+    doctor = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
+    info_cita = {
+        "id": cita.id,
+        "fecha_hora": cita.fecha_hora,
+        "especialidad": cita.especialidad,
+        "motivo": cita.motivo,
+        "estado": cita.estado,
+        "medico": doctor.name,
+        "consulta": doctor.consulta
+    }
+    return info_cita
