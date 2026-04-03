@@ -12,12 +12,13 @@ from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
-from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DuracionCitaUpdate, EstadoCitaUpdate
+from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate
 from spade.message import Message
 import json
 from spade.agent import Agent
 from spade.behaviour import OneShotBehaviour
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import timedelta
 
 medicos_activos = {}
 PESOS_VOLANTES = {
@@ -301,6 +302,10 @@ async def cancelar_cita(cita_id: int, db: Session = Depends(get_db), current_use
         raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta cita")
     
     cita.estado = "cancelada"
+    if cita.id_volante:
+        volante = db.query(Volante).filter(Volante.id == cita.id_volante).first()
+        if volante and volante.estado == "consumido":
+            volante.estado = "pendiente"
     db.commit()
 
     try:
@@ -388,8 +393,39 @@ async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depe
         Cita.fecha_hora.startswith(hoy_str),
         Cita.estado != "cancelada"
     ).all()
+
+    turnos_hoy = doctor.agenda.get(hoy_str, [])
+    total_citas_dia = 0
+    for turno in turnos_hoy:
+        inicio_str, fin_str = turno.split("-")
+        hora_actual = datetime.datetime.strptime(f"{hoy_str} {inicio_str}", "%Y-%m-%d %H:%M")
+        hora_fin = datetime.datetime.strptime(f"{hoy_str} {fin_str}", "%Y-%m-%d %H:%M")
+
+        duracion = doctor.duracion_cita
+        while hora_actual + timedelta(minutes=duracion) <= hora_fin:
+          total_citas_dia += 1
+          hora_actual += timedelta(minutes=duracion)
+
+    info_citas_hoy = []
+    for cita in citas_hoy:
+        paciente = db.query(Paciente).filter(Paciente.id == cita.paciente_id).first()
+        hora = datetime.datetime.strptime(cita.fecha_hora, "%Y-%m-%d %H:%M").strftime("%H:%M")
+        estado_medico = cita.estado
+        if cita.estado == "lista_espera":
+            estado_medico = "confirmada"
+        elif cita.estado == "pendiente_aceptacion":
+            estado_medico = "buscando"
+        info_citas_hoy.append({
+            "id": cita.id,
+            "hora": hora,
+            "especialidad": cita.especialidad,
+            "motivo": cita.motivo,
+            "estado": estado_medico,
+            "paciente": paciente.name,
+            "total_citas_dia": total_citas_dia
+        })
     
-    return citas_hoy
+    return info_citas_hoy
 
 @app.get("/api/pacientes/me")
 def get_current_patient_info(current_user: Usuario = Depends(get_is_paciente), db: Session = Depends(get_db)):
@@ -484,6 +520,16 @@ def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depen
     
     return nuevo_volante
 
+@app.get("/api/doctors/me/ultimo-dia-agenda")
+def obtener_ultimo_dia_agenda(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    agenda = doctor.agenda or {}
+    if not agenda:
+        raise HTTPException(status_code=404, detail="No hay días en la agenda")
+    ultimo_dia = max(agenda.keys())
+    print(f"Último día en la agenda del doctor {current_user.email}: {ultimo_dia}")
+    return {"ultimo_dia": ultimo_dia}
+
 @app.patch("/api/doctors/me/agenda")
 def actualizar_agenda_doctor(agenda: Dict[str, List[str]], db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
@@ -520,17 +566,31 @@ def actualizar_agenda_doctor(agenda: Dict[str, List[str]], db: Session = Depends
 
     return {"mensaje": "Agenda actualizada exitosamente", "agenda": doctor.agenda}
 
-@app.patch("/api/doctors/me/duracion-cita")
-def actualizar_duracion_cita(duracion: DuracionCitaUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+@app.get("/api/doctors/me")
+def obtener_info_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    return {
+        "email": doctor.email,
+        "name": doctor.name,
+        "phone": doctor.phone,
+        "especialidad": doctor.especialidad,
+        "consulta": doctor.consulta,
+        "duracion_cita": doctor.duracion_cita
+    }
 
-    if duracion.duracion_cita <= 0:
+@app.put("/api/doctors/me")
+def actualizar_info_doctor(updated_info: DoctorUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    doctor = db.query(Doctor).filter(Doctor.id == current_user.id).first()
+    if updated_info.duracion_cita <= 0:
         raise HTTPException(status_code=400, detail="La duración de la cita debe ser un número positivo.")
-    
-    doctor.duracion_cita = duracion.duracion_cita
+    update_data = updated_info.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if key == "password":
+            doctor.password = get_password_hash(value)
+        else:
+            setattr(doctor, key, value)
     db.commit()
     db.refresh(doctor)
-
     return {"mensaje": "Duración de cita actualizada exitosamente", "duracion_cita": doctor.duracion_cita}
 
 @app.patch("/api/doctors/citas/{cita_id}")

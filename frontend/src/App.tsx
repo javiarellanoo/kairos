@@ -11,6 +11,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CitaDetalle } from './pages/DetallesCita'
 import { NuevaCita } from './pages/NuevaCita'
 import { PerfilPaciente } from './pages/PerfilPaciente'
+import { MedicoHome } from './pages/MedicoHome'
+import { AbrirAgenda } from './pages/AbrirAgenda'
+import { PerfilMedico } from './pages/PerfilMedico'
 
  function App() {
   return (
@@ -43,6 +46,22 @@ import { PerfilPaciente } from './pages/PerfilPaciente'
         <Route path="/mi-perfil" element={
           <ProtectedRoute allowedRoles={['paciente']}>
             <PerfilPaciente />
+          </ProtectedRoute>
+        } />
+        <Route path="/medico/home" element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <MedicoHome />
+          </ProtectedRoute>
+         } />
+
+          <Route path="/medico/abrir-agenda" element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <AbrirAgenda />
+          </ProtectedRoute>
+        } />
+          <Route path="/medico/perfil" element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <PerfilMedico />
           </ProtectedRoute>
         } />
       </Routes>
