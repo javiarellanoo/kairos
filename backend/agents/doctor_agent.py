@@ -1,5 +1,6 @@
-# Import Agent directly from spade.agent; spade does not export Agent at the top level
+
 from spade.agent import Agent
+from sqlalchemy import or_
 from spade.behaviour import CyclicBehaviour
 import json
 from dependencies import get_today
@@ -71,13 +72,23 @@ class DoctorAgent(Agent):
                                 while hora_actual + timedelta(minutes=duracion) <= hora_fin:
                                     posibles_huecos.append(hora_actual.strftime("%Y-%m-%d %H:%M"))
                                     hora_actual += timedelta(minutes=duracion)
-                            
-                            citas_ocupadas = db.query(Cita).filter(
+                                
+                            citas_bloqueantes = db.query(Cita).filter(
                                 Cita.medico_id == doctor.id,
-                                Cita.fecha_hora.in_(posibles_huecos), Cita.estado != "cancelada"
-                            ).all()
+                                Cita.estado != "cancelada",
+                                or_(Cita.fecha_hora.in_(posibles_huecos), Cita.fecha_hora_propuesta.in_(posibles_huecos))).all()
+                            
+                            huecos_ocupados = set()
+                            for cita in citas_bloqueantes:
+                                if cita.fecha_hora in posibles_huecos and cita.estado != "pendiente_aceptacion":
+                                    huecos_ocupados.add(cita.fecha_hora)
+                                
+                                if cita.fecha_hora_propuesta in posibles_huecos and cita.estado == "pendiente_aceptacion":
+                                    huecos_ocupados.add(cita.fecha_hora_propuesta)
 
-                            huecos_ocupados = [c.fecha_hora for c in citas_ocupadas]
+                                if cita.fecha_hora in posibles_huecos and cita.estado == "pendiente_aceptacion":
+                                    huecos_ocupados.add(cita.fecha_hora)
+
                             huecos_libres = [h for h in posibles_huecos if h not in huecos_ocupados and h not in self.agent.huecos_bloqueados]
 
                             for hueco in huecos_libres:
@@ -119,7 +130,12 @@ class DoctorAgent(Agent):
                     datos_aceptacion = json.loads(msg.body)
                     fecha_hora = datos_aceptacion.get("fecha_hora")
                     print(f"Propuesta aceptada por {remitente} para fecha y hora: {fecha_hora}")
-                    self.agent.huecos_bloqueados.pop(fecha_hora, None)
+                
+                elif performative == "inform" and msg.get_metadata("ontology") == "confirmacion_db":
+                    datos_confirmacion = json.loads(msg.body)
+                    fecha_hora_confirmada = datos_confirmacion.get("fecha_hora")
+                    print(f"Confirmación de cita recibida por {remitente} para fecha y hora: {fecha_hora_confirmada}")
+                    self.agent.huecos_bloqueados.pop(fecha_hora_confirmada, None)
                 
                 elif performative == "reject-proposal":
                     datos = json.loads(msg.body)

@@ -603,7 +603,7 @@ async def test_abrir_agenda_solapada(client):
 @pytest.mark.asyncio
 async def test_actualizar_duracion_cita_exitoso(client):
     headers = await get_auth_headers(client, DOCTOR_1)
-    response = await client.patch("/api/doctors/me/duracion-cita", json={"duracion_cita": 30}, headers=headers)
+    response = await client.put("/api/doctors/me", json={"duracion_cita": 30}, headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "duracion_cita" in data
@@ -612,14 +612,14 @@ async def test_actualizar_duracion_cita_exitoso(client):
 @pytest.mark.asyncio
 async def test_actualizar_duracion_cita_con_valor_invalido(client):
     headers = await get_auth_headers(client, DOCTOR_1)
-    response = await client.patch("/api/doctors/me/duracion-cita", json={"duracion_cita": -10}, headers=headers)
+    response = await client.put("/api/doctors/me", json={"duracion_cita": -10}, headers=headers)
     assert response.status_code == 400
     assert "La duración de la cita debe ser un número positivo." in response.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_actualizar_duracion_cita_con_valor_cero(client):
     headers = await get_auth_headers(client, DOCTOR_1)
-    response = await client.patch("/api/doctors/me/duracion-cita", json={"duracion_cita": 0}, headers=headers)
+    response = await client.put("/api/doctors/me", json={"duracion_cita": 0}, headers=headers)
     assert response.status_code == 400
     assert "La duración de la cita debe ser un número positivo." in response.json()["detail"]
 
@@ -643,7 +643,15 @@ async def test_actualizar_estado_cita_con_estado_invalido(client):
 @pytest.mark.asyncio
 async def test_actualizar_estado_cita_cancelada(client):
     headers = await get_auth_headers(client, DOCTOR_2)
-    response = await client.patch("/api/doctors/citas/3", json={"estado": "cancelada"}, headers=headers)
+    cita_cancelada = await create_test_cita(
+        db_session=SessionLocal(),
+        doctor_email=DOCTOR_2["username"],
+        paciente_email=PATIENT_2["username"],
+        fecha_hora="2026-05-20T10:00:00",
+        estado="cancelada"
+    )
+    cita_cancelada_id = cita_cancelada.id
+    response = await client.patch(f"/api/doctors/citas/{cita_cancelada_id}", json={"estado": "no_asistida"}, headers=headers)
     assert response.status_code == 400
     assert "No se puede actualizar una cita cancelada" in response.json()["detail"]
 

@@ -79,7 +79,7 @@ export const NuevaCita = () => {
     }
 
     try {
-      await apiClient.post('/nueva-cita', {
+      const response = await apiClient.post('/nueva-cita', {
         especialidad: formData.especialidad,
         motivo: requiereVolante ? null : formData.motivo,
         id_volante: requiereVolante ? formData.id_volante : null,
@@ -87,7 +87,7 @@ export const NuevaCita = () => {
       });
       
       setIsSuccess(true);
-      setTimeout(() => navigate('/mis-citas'), 3000);
+      setTimeout(() => navigate(`/citas/${response.data.id}`), 3000);
       
     } catch (error: any) {
       console.error("Error al solicitar cita:", error);
@@ -177,7 +177,7 @@ export const NuevaCita = () => {
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-slate-500 font-medium">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Redirigiendo a tus citas...
+                Redirigiendo a tu nueva cita...
               </div>
             </div>
           </div>

@@ -99,43 +99,21 @@ class PatientAgent(Agent):
             if msg_gestor and msg_gestor.get_metadata("ontology") == "reasignacion_cita":
                 datos_reasignacion = json.loads(msg_gestor.body)
                 timeout = datos_reasignacion.get("timeout", 3600)
-                cita_id = datos_reasignacion.get("cita_id")
-                nueva_fecha_hora = datos_reasignacion.get("fecha_hora")
+                msg_humano = await self.receive(timeout=timeout)
+                respuesta_al_gestor = Message(to=str(msg_gestor.sender))
+                respuesta_al_gestor.set_metadata("ontology", "reasignacion_cita")
 
-                db_session = SessionLocal()
-                try:
-                    cita = db_session.query(Cita).filter(Cita.id == cita_id).first()
-                    if cita:
-                        estado_original = cita.estado
-                        cita.estado = "pendiente_aceptacion"
-                        cita.fecha_hora_propuesta = nueva_fecha_hora
-                        db_session.commit()
+                if msg_humano:
+                    decision = json.loads(msg_humano.body).get("decision")
+                    if decision == "aceptar":
+                        respuesta_al_gestor.set_metadata("performative", "accept-proposal")
+                    else:
+                        respuesta_al_gestor.set_metadata("performative", "reject-proposal")
+                else:
+                    print("[PatientAgent] El humano ignoró la notificación en la web.")
+                    respuesta_al_gestor.set_metadata("performative", "reject-proposal")
 
-                        msg_humano = await self.receive(timeout=timeout)
-                        respuesta_al_gestor = Message(to=str(msg_gestor.sender))
-                        respuesta_al_gestor.set_metadata("ontology", "reasignacion_cita")
-
-                        if msg_humano:
-                            decision = json.loads(msg_humano.body).get("decision")
-                            if decision == "aceptar":
-                                respuesta_al_gestor.set_metadata("performative", "accept-proposal")
-                            else:
-                                respuesta_al_gestor.set_metadata("performative", "reject-proposal")
-                                cita.fecha_hora_propuesta = None
-                                cita.estado = estado_original
-                                db_session.commit()
-                        else:
-                            print("[PatientAgent] El humano ignoró la notificación en la web.")
-                            respuesta_al_gestor.set_metadata("performative", "reject-proposal")
-                            cita.estado = estado_original
-                            db_session.commit()
-
-                        await self.send(respuesta_al_gestor)
-                except Exception as e:
-                    print(f"[PatientAgent] Error en BBDD: {e}")
-                    db_session.rollback()
-                finally:
-                    db_session.close()
+                await self.send(respuesta_al_gestor)
                 
             await self.agent.stop()
 

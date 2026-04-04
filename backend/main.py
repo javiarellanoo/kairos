@@ -284,10 +284,19 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
 
         )
         
-
         db.add(nueva_cita)
         db.commit()
         db.refresh(nueva_cita)
+
+        try:
+            msg_confirmacion = Message(to= f"doctor_{resultado_cita['doctor_id']}@localhost")
+            msg_confirmacion.set_metadata("performative", "inform")
+            msg_confirmacion.set_metadata("ontology", "confirmacion_db")
+            msg_confirmacion.body = json.dumps({"fecha_hora": resultado_cita["fecha_hora"]})
+            await enviar_mensaje_xmpp(msg_confirmacion)
+        except Exception as e:
+            print(f"Error al enviar mensaje de confirmación al agente doctor: {e}")
+            
         return nueva_cita
     else:
         raise HTTPException(status_code=404, detail="No se pudo encontrar una cita disponible para los criterios proporcionados.")

@@ -67,7 +67,7 @@ class GestorListaEsperaAgente(Agent):
                 Cita.fecha_hora.isnot(None).asc(),
                 desc(Cita.prioridad_peso),
                 asc(Cita.fecha_hora)
-            ).all()
+            ).with_for_update(skip_locked=True).all()
 
             if not candidatos:
                 print("No hay pacientes en lista de espera para este hueco.")
@@ -111,8 +111,11 @@ class GestorListaEsperaAgente(Agent):
                 agente_temporal = PatientAgent(jid_paciente, "password123")
                 await agente_temporal.start()
 
-                await self.send(msg_propuesta)
+                candidato.estado = "pendiente_aceptacion"
+                candidato.fecha_hora_propuesta = fecha_hora
+                db_session.commit()
 
+                await self.send(msg_propuesta)
                 
                 respuesta = await self.receive(timeout=tiempo_espera)
 
@@ -139,9 +142,18 @@ class GestorListaEsperaAgente(Agent):
                         break
                     elif performative == "reject-proposal":
                         print(f"Paciente {paciente_id} ha rechazado la propuesta.")
+                        candidato.estado = "lista_espera"
+                        candidato.fecha_hora_propuesta = None
+                        db_session.commit()
                         continue
                 else:
                     print(f"No se recibió respuesta del paciente {paciente_id} en el tiempo esperado.")
+                    db_session.refresh(candidato)
+
+                    if candidato.estado == "pendiente_aceptacion":
+                        candidato.estado = "lista_espera"
+                        candidato.fecha_hora_propuesta = None
+                        db_session.commit()
                     continue
             if not hueco_asignado:
                 print("No se pudo asignar el hueco a ningún paciente de la lista de espera.")

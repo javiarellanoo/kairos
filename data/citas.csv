@@ -74,7 +74,7 @@ paciente_dni,medico,fecha_hora,especialidad,motivo,prioridad_peso,id_volante,est
 95385351G,marcmari965@test.com,2026-02-23 17:30,Cardiología,Volante - Derivación Alta,3.0,8b9c68db-acc5-47b6-aa14-0f9d9aed5603,Confirmada
 53108171K,narcpeir429@test.com,2026-02-23 17:45,Pediatría,Consulta General,1.0,,Confirmada
 53108171K,narcpeir429@test.com,2026-02-23 18:00,Pediatría,Renovación de medicación,1.0,,Confirmada
-72005264S,aguemart303@example.com,2026-02-23 18:00,Medicina General,Revisión de analíticas,1.0,,Lista de Espera
+72005264S,aitasala693@fakeemail.com,2026-02-23 18:00,Medicina General,Revisión de analíticas,1.0,,Lista de Espera
 53018179M,marcmari965@test.com,2026-02-23 18:15,Cardiología,Volante - Derivación Baja,1.0,bb12dc6a-4a0a-4e4d-a34c-4614fd5a6663,Confirmada
 14793960S,larajime934@test.com,2026-02-23 18:30,Medicina General,Consulta General,1.0,,Confirmada
 89850390Q,larajime934@test.com,2026-02-23 18:45,Medicina General,Renovación de medicación,1.0,,Confirmada
@@ -214,7 +214,7 @@ paciente_dni,medico,fecha_hora,especialidad,motivo,prioridad_peso,id_volante,est
 64247077G,aitasala693@fakeemail.com,2026-02-25 16:00,Medicina General,Revisión de analíticas,1.0,,Confirmada
 53108171K,narcpeir429@test.com,2026-02-25 16:00,Pediatría,Revisión de analíticas,1.0,,Lista de Espera
 42935729L,marcmari965@test.com,2026-02-25 16:00,Cardiología,Volante - Derivación Baja,1.0,775016b6-1667-442b-9ecb-63fe15ea0852,Confirmada
-72005264S,aguemart303@example.com,2026-02-25 16:00,Medicina General,Renovación de medicación,1.0,,Lista de Espera
+72005264S,aitasala693@fakeemail.com,2026-02-25 16:00,Medicina General,Renovación de medicación,1.0,,Lista de Espera
 26189238N,marcmari965@test.com,2026-02-25 16:15,Cardiología,Volante - Derivación Media,2.0,fde9a329-4b2a-473a-b473-2b00bfb022e3,Confirmada
 64485145E,larajime934@test.com,2026-02-25 16:30,Medicina General,Consulta General,1.0,,Lista de Espera
 78688539L,marcmari965@test.com,2026-02-25 16:30,Cardiología,Volante - Derivación Alta,3.0,cedf930b-9560-4996-99d2-bf3e5f743b8b,Confirmada
