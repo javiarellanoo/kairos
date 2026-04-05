@@ -12,11 +12,18 @@ import {
   Send,
   AlertCircle,
   FilePlus2,
-  X
+  X,
+  Menu,
+  Activity,
+  CalendarDays,
+  History,
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { Button } from '../components/ui/Button';
 import { cn } from '../utils/tw';
+import { useAuth } from '../context/AuthContext';
 
 interface CitaDetalle {
   id: number;
@@ -37,13 +44,17 @@ interface Especialidad {
 export const DetallesCitaMedico = () => {
   const { id_cita } = useParams<{ id_cita: string }>();
   const navigate = useNavigate();
-  
+  const { logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mockDateStr = import.meta.env.VITE_MOCK_CURRENT_DATE;
   const [cita, setCita] = useState<CitaDetalle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionLoading, setAccionLoading] = useState<string | null>(null);
 
   const [isVolanteModalOpen, setIsVolanteModalOpen] = useState(false);
+  const [isRecordatorioModalOpen, setIsRecordatorioModalOpen] = useState(false);
+  const [notaRecordatorio, setNotaRecordatorio] = useState('');
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [volanteForm, setVolanteForm] = useState({
     especialidad_destino: '',
@@ -84,11 +95,14 @@ export const DetallesCitaMedico = () => {
     }
   };
 
-  const enviarRecordatorio = () => {
+  const enviarRecordatorio = (e: React.FormEvent) => {
+    e.preventDefault();
     setAccionLoading('recordatorio');
     setTimeout(() => {
       alert("Recordatorio enviado con éxito al agente del paciente.");
       setAccionLoading(null);
+      setIsRecordatorioModalOpen(false);
+      setNotaRecordatorio('');
     }, 1000);
   };
 
@@ -110,7 +124,7 @@ export const DetallesCitaMedico = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
+        <div className="w-10 h-10 border-4 border-primary border-t-primary rounded-full animate-spin mb-4"></div>
         <p className="text-slate-500 font-medium animate-pulse">Cargando expediente...</p>
       </div>
     );
@@ -132,35 +146,88 @@ export const DetallesCitaMedico = () => {
   const horaFormateada = fechaObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-12">
-      {/* Cabecera */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate(-1)}
-              aria-label="Volver a la agenda"
-              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <h1 className="text-xl font-bold text-slate-900">Detalles de la Cita</h1>
-          </div>
-          <div className="text-sm font-semibold px-3 py-1 bg-slate-100 text-slate-700 rounded-md border border-slate-200">
-            ID: #{cita.id.toString().padStart(4, '0')}
-          </div>
-        </div>
-      </header>
+    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
+      
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-accent/50 backdrop-blur-sm z-20 md:hidden"
+          aria-hidden="true"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <aside className={cn(
+        "fixed md:static inset-y-0 left-0 w-64 bg-accent text-white flex flex-col flex-shrink-0 z-30 transition-transform duration-300 md:translate-x-0",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-6 flex items-center justify-between">
+          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2 text-white">
+            <Activity className="w-6 h-6" /> Kairós <span className="text-white font-light">MED</span>
+          </h1>
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label='Cerrar menú de navegación'
+            className="md:hidden p-2 -mr-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <button onClick={() => navigate('/medico/home')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/home'); }}>
+            <CalendarDays className="w-5 h-5" /> Resumen Diario
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/citas'); }}>
+            <History className="w-5 h-5" /> Agenda Completa
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/perfil'); }}>
+            <Settings className="w-5 h-5" /> Mi Perfil
+          </button>
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <button 
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-400/10 rounded-xl font-medium transition-colors"
+          >
+            <LogOut className="w-5 h-5" /> Salir
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto relative">
+        <div className="p-4 sm:p-8 max-w-5xl mx-auto w-full pt-8 md:pt-8 pb-12">
+          
+          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 mb-8">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label='Abrir menú de navegación'
+                className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg md:hidden self-start transition-colors"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <button 
+                onClick={() => navigate(-1)}
+                aria-label="Volver a la agenda"
+                className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                <ArrowLeft className="w-5 h-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Detalles de la Cita</h1>
+              <p className="text-slate-500 mt-1 font-semibold text-sm">ID: #{cita.id.toString().padStart(4, '0')}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: Información */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Tarjeta de Paciente */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200" aria-labelledby="titulo-paciente">
             <h2 id="titulo-paciente" className="flex items-center gap-2 text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">
-              <User className="w-5 h-5 text-teal-600" aria-hidden="true" /> Datos del Paciente
+              <User className="w-5 h-5 text-primary" aria-hidden="true" /> Datos del Paciente
             </h2>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold text-2xl" aria-hidden="true">
@@ -168,15 +235,13 @@ export const DetallesCitaMedico = () => {
               </div>
               <div>
                 <p className="text-xl font-bold text-slate-900">{cita.paciente}</p>
-                <p className="text-sm text-slate-500">Expediente disponible en sistema central</p>
               </div>
             </div>
           </section>
 
-          {/* Tarjeta de Detalles de Cita */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200" aria-labelledby="titulo-detalles">
             <h2 id="titulo-detalles" className="flex items-center gap-2 text-lg font-bold text-slate-900 mb-4 border-b border-slate-100 pb-3">
-              <FileText className="w-5 h-5 text-teal-600" aria-hidden="true" /> Información de la Consulta
+              <FileText className="w-5 h-5 text-primary" aria-hidden="true" /> Información de la Consulta
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -211,10 +276,8 @@ export const DetallesCitaMedico = () => {
           </section>
         </div>
 
-        {/* COLUMNA DERECHA: Acciones */}
         <aside className="space-y-6">
           
-          {/* Panel de Asistencia */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200" aria-labelledby="titulo-acciones">
             <h2 id="titulo-acciones" className="text-base font-bold text-slate-900 mb-4 uppercase tracking-wider text-center">
               Gestión de Asistencia
@@ -240,14 +303,13 @@ export const DetallesCitaMedico = () => {
             </div>
           </section>
 
-          {/* Panel de Herramientas Adicionales */}
           <section className="bg-slate-800 text-white p-6 rounded-2xl shadow-sm" aria-label="Herramientas adicionales">
             <p className="text-sm text-slate-300 mb-4 font-medium uppercase tracking-wider">Acciones Clínicas</p>
             
             <div className="space-y-3">
               <button 
                 onClick={() => setIsVolanteModalOpen(true)}
-                disabled={cita.estado === 'no_asistida'}
+                disabled={cita.estado === 'no_asistida' || cita.estado === 'cancelada' || cita.estado === 'pendiente_aceptacion' || cita.fecha_hora < new Date(mockDateStr).toISOString()}
                 className="w-full flex items-center justify-between p-3 bg-slate-700/50 hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-700/50 focus:outline-none focus:ring-2 focus:ring-teal-400"
               >
                 <span className="flex items-center gap-3 font-medium">
@@ -257,7 +319,7 @@ export const DetallesCitaMedico = () => {
               </button>
 
               <button 
-                onClick={enviarRecordatorio}
+                onClick={() => setIsRecordatorioModalOpen(true)}
                 disabled={accionLoading === 'recordatorio' || cita.estado === 'no_asistida'}
                 className="w-full flex items-center justify-between p-3 bg-slate-700/50 hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-700/50 focus:outline-none focus:ring-2 focus:ring-teal-400"
               >
@@ -270,9 +332,10 @@ export const DetallesCitaMedico = () => {
           </section>
 
         </aside>
+        </div>
+        </div>
       </main>
 
-      {/* MODAL ACCESIBLE: CREAR VOLANTE */}
       {isVolanteModalOpen && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
@@ -283,7 +346,7 @@ export const DetallesCitaMedico = () => {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
               <h3 id="modal-volante-titulo" className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <FilePlus2 className="w-5 h-5 text-teal-600" aria-hidden="true"/> Derivar a Especialista
+                <FilePlus2 className="w-5 h-5 text-primary" aria-hidden="true"/> Derivar a Especialista
               </h3>
               <button 
                 onClick={() => setIsVolanteModalOpen(false)}
@@ -357,9 +420,69 @@ export const DetallesCitaMedico = () => {
                   type="submit" 
                   variant="primary" 
                   isLoading={accionLoading === 'volante'}
-                  className="flex-1 bg-teal-600 hover:bg-teal-700"
+                  className="flex-1 bg-primary hover:bg-cyan-700"
                 >
                   Crear Volante
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isRecordatorioModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-recordatorio-titulo"
+        >
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
+              <h3 id="modal-recordatorio-titulo" className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-amber-500" aria-hidden="true"/> Enviar Aviso
+              </h3>
+              <button 
+                onClick={() => setIsRecordatorioModalOpen(false)}
+                aria-label="Cerrar ventana"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            <form onSubmit={enviarRecordatorio} className="p-5 space-y-4">
+              <div>
+                <label htmlFor="notaRecordatorio" className="block text-sm font-medium text-slate-700 mb-1">
+                  Mensaje *
+                </label>
+                <textarea 
+                  id="notaRecordatorio"
+                  required
+                  rows={4}
+                  placeholder="Nota de seguimiento o instrucciones para el paciente..."
+                  value={notaRecordatorio}
+                  onChange={(e) => setNotaRecordatorio(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-shadow resize-none"
+                ></textarea>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsRecordatorioModalOpen(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  isLoading={accionLoading === 'recordatorio'}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-transparent focus:ring-amber-500"
+                >
+                  Enviar
                 </Button>
               </div>
             </form>

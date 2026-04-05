@@ -697,4 +697,6 @@ def get_volantes_por_especialidad(especialidad: str, db: Session = Depends(get_d
 @app.get("/api/doctors/especialidades")
 def get_especialidades_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     especialidades = db.query(Especialidad).filter(Especialidad.name != "Medicina General", Especialidad.name != "Pediatría").all()
+    if current_user.especialidad not in ["Medicina General", "Pediatría"]:
+        especialidades = [esp for esp in especialidades if esp.name == current_user.especialidad]
     return [{ "nombre": esp.name} for esp in especialidades]
