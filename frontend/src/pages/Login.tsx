@@ -36,7 +36,7 @@ export const Login = () => {
       } else if (userRole === 'doctor') {
         navigate('/medico/home');
       } else if (userRole === 'admin') {
-        navigate('/admin-panel');
+        navigate('/admin/home');
       } else {
         navigate('/'); 
       }

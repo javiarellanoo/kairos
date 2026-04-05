@@ -86,7 +86,7 @@ class Paciente(Usuario):
     tarjeta_sanitaria = Column(StringEncryptedType(String, ENCRYPTION_KEY, FernetEngine))
     tarjeta_sanitaria_hash = Column(String, unique=True, index=True)
     
-    medico_de_cabecera_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id"))
+    medico_de_cabecera_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id", ondelete="SET NULL"))
     preferencias_horarias = Column(JSONB)
 
     @validates('dni')

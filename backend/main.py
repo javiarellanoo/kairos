@@ -12,7 +12,7 @@ from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
-from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, AdminCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate, EspecialidadCreate
+from schemas import AdminDoctorUpdate, AdminPacienteUpdate, DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, AdminCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate, EspecialidadCreate
 from spade.message import Message
 import json
 from spade.agent import Agent
@@ -102,6 +102,9 @@ def signup(usuario: PacienteCreate, db: Session = Depends(get_db), is_not_logged
         raise HTTPException(status_code=400, detail="El DNI ya está registrado")
     if existing_tarjeta:
         raise HTTPException(status_code=400, detail="La tarjeta sanitaria ya está registrada")
+    
+    if usuario.birth_date and usuario.birth_date > get_today().strftime("%Y-%m-%d"):
+        raise HTTPException(status_code=400, detail="La fecha de nacimiento no puede ser en el futuro")
 
     hashed_password = get_password_hash(usuario.password)
     new_user = Paciente(email=usuario.email, 
@@ -766,3 +769,146 @@ def crear_especialidad(nueva_especialidad: EspecialidadCreate, db: Session = Dep
 def listar_especialidades(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
     especialidades = db.query(Especialidad).all()
     return [{"nombre": esp.name} for esp in especialidades]
+
+@app.get("/api/admin/usuarios")
+def listar_usuarios(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    usuarios = db.query(Usuario).filter(Usuario.rol != "admin").all()
+    resultado = []
+    for user in usuarios:
+        if user.rol == "paciente":
+            paciente = db.query(Paciente).filter(Paciente.id == user.id).first()
+            resultado.append({
+                "id": paciente.id, "email": paciente.email, "name": paciente.name, "rol": paciente.rol,
+                "phone": paciente.phone, "dni": paciente.dni, "birth_date": paciente.birth_date, "tarjeta_sanitaria": paciente.tarjeta_sanitaria
+            })
+        elif user.rol == "doctor":
+            doctor = db.query(Doctor).filter(Doctor.id == user.id).first()
+            resultado.append({
+                "id": doctor.id, "email": doctor.email, "name": doctor.name, "rol": doctor.rol,
+                "phone": doctor.phone, "especialidad": doctor.especialidad, "consulta": doctor.consulta, "duracion_cita": doctor.duracion_cita
+            })
+    return resultado
+
+@app.delete("/api/admin/usuarios/{usuario_id}")
+def eliminar_usuario(usuario_id: str, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if usuario.rol == "admin":
+        raise HTTPException(status_code=403, detail="No se pueden eliminar usuarios con rol admin")
+    
+    if usuario.rol == "paciente":
+        paciente = db.query(Paciente).filter(Paciente.id == usuario_id).first()
+        if paciente:
+            db.query(Cita).filter(Cita.paciente_id == paciente.id).delete(synchronize_session=False)
+            volantes_a_eliminar = db.query(Volante.id).filter(Volante.paciente_id == paciente.id).all()
+            volantes_ids = [v[0] for v in volantes_a_eliminar]
+            if volantes_ids:
+                db.query(Cita).filter(Cita.id_volante.in_(volantes_ids)).update({Cita.id_volante: None}, synchronize_session=False)
+                db.query(Volante).filter(Volante.id.in_(volantes_ids)).delete(synchronize_session=False)
+            db.delete(paciente)
+
+    
+    elif usuario.rol == "doctor":
+        doctor = db.query(Doctor).filter(Doctor.id == usuario_id).first()
+        if doctor:
+            if doctor.especialidad in ["Medicina General", "Pediatría"]:
+                pacientes_asignados = db.query(Paciente).filter(Paciente.medico_de_cabecera_id == doctor.id).all()
+                for paciente in pacientes_asignados:
+                    paciente.medico_de_cabecera_id = reasignar_medico_cabecera(db, doctor.id)
+                db.commit()
+            
+            db.query(Cita).filter(Cita.medico_id == doctor.id).delete(synchronize_session=False)
+            volantes_a_eliminar = db.query(Volante.id).filter(Volante.medico_emisor_id == doctor.id).all()
+            volantes_ids = [v[0] for v in volantes_a_eliminar]
+            if volantes_ids:
+                db.query(Cita).filter(Cita.id_volante.in_(volantes_ids)).update({Cita.id_volante: None}, synchronize_session=False)
+                db.query(Volante).filter(Volante.id.in_(volantes_ids)).delete(synchronize_session=False)
+            
+            db.delete(doctor)
+    db.commit()
+    return {"mensaje": "Usuario eliminado exitosamente"}
+
+@app.put("/api/admin/pacientes/{usuario_id}")
+def actualizar_info_paciente_admin(usuario_id: str, updated_info: AdminPacienteUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    paciente = db.query(Paciente).filter(Paciente.id == usuario_id).first()
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    
+    usuario_correo_existente = db.query(Usuario).filter(Usuario.email == updated_info.email, Usuario.id != usuario_id).first()
+    if usuario_correo_existente:
+        raise HTTPException(status_code=400, detail="El email ya está registrado por otro usuario")
+    
+    if updated_info.birth_date and updated_info.birth_date > get_today():
+        raise HTTPException(status_code=400, detail="La fecha de nacimiento no puede ser en el futuro")
+    
+    usuario_dni_existente = db.query(Usuario).filter(Usuario.dni == updated_info.dni, Usuario.id != usuario_id).first()
+    if usuario_dni_existente:
+        raise HTTPException(status_code=400, detail="El DNI ya está registrado por otro usuario")
+    
+    usuario_tarjeta_existente = db.query(Usuario).filter(Usuario.tarjeta_sanitaria == updated_info.tarjeta_sanitaria, Usuario.id != usuario_id).first()
+    if usuario_tarjeta_existente:
+        raise HTTPException(status_code=400, detail="El número de tarjeta sanitaria ya está registrado por otro usuario")
+    
+    update_data = updated_info.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if key == "password":
+            paciente.password = get_password_hash(value)
+        else:
+            setattr(paciente, key, value)
+    db.commit()
+    db.refresh(paciente)
+
+    return {
+        "email": paciente.email,
+        "name": paciente.name,
+        "phone": paciente.phone,
+        "dni": paciente.dni,
+        "birth_date": paciente.birth_date,
+        "tarjeta_sanitaria": paciente.tarjeta_sanitaria,
+        "preferencias_horarias": paciente.preferencias_horarias
+    }
+
+@app.put("/api/admin/doctors/{usuario_id}")
+def actualizar_info_doctor_admin(usuario_id: str, updated_info: AdminDoctorUpdate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    doctor = db.query(Doctor).filter(Doctor.id == usuario_id).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    
+    usuario_email_existente = db.query(Usuario).filter(Usuario.email == updated_info.email, Usuario.id != usuario_id).first()
+    if usuario_email_existente:
+        raise HTTPException(status_code=400, detail="El email ya está registrado por otro usuario")
+    
+    update_data = updated_info.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if key == "password":
+            doctor.password = get_password_hash(value)
+        else:
+            setattr(doctor, key, value)
+    db.commit()
+    db.refresh(doctor)
+    return {
+        "email": doctor.email,
+        "name": doctor.name,
+        "phone": doctor.phone,
+        "consulta": doctor.consulta,
+        "duracion_cita": doctor.duracion_cita
+    }
+
+def reasignar_medico_cabecera(db: Session, doctor_id_a_reasignar: str):
+    doctor_a_reasignar = db.query(Doctor).filter(Doctor.id == doctor_id_a_reasignar).first()
+    if not doctor_a_reasignar:
+        return None
+    
+    especialidad_requerida = doctor_a_reasignar.especialidad
+    medicos_cabecera_disponibles = db.query(Doctor).filter(
+        Doctor.especialidad == especialidad_requerida,
+        Doctor.id != doctor_id_a_reasignar
+    ).all()
+
+    if not medicos_cabecera_disponibles:
+        return None
+    
+    medico_menos_pacientes = min(medicos_cabecera_disponibles, key=lambda doc: db.query(Paciente).filter(Paciente.medico_de_cabecera_id == doc.id).count())
+    
+    return medico_menos_pacientes.id

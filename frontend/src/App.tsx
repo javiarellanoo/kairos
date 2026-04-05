@@ -17,6 +17,7 @@ import { PerfilMedico } from './pages/PerfilMedico'
 import { CitasMedico } from './pages/CitasMedico'
 import { DetallesCitaMedico } from './pages/DetallesCitaMedico'
 import { AdminHome } from './pages/AdminHome'
+import { UsuariosAdmin } from './pages/UsuariosAdmin'
 
 
  function App() {
@@ -89,6 +90,12 @@ import { AdminHome } from './pages/AdminHome'
       <Route path= "/admin/home" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminHome />
+          </ProtectedRoute>
+        } />
+      
+      <Route path= "/admin/usuarios" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <UsuariosAdmin />
           </ProtectedRoute>
         } />
     </Routes>
