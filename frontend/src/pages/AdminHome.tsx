@@ -10,9 +10,6 @@ import {
   X,
   PlusCircle,
   Tags,
-  Building2,
-  CheckCircle2,
-  Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/client';
@@ -20,7 +17,7 @@ import { cn } from '../utils/tw';
 import { Button } from '../components/ui/Button';
 
 export const AdminHome = () => {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +37,16 @@ export const AdminHome = () => {
   const mockDateStr = import.meta.env.VITE_MOCK_CURRENT_DATE;
   const today = mockDateStr ? new Date(mockDateStr) : new Date();
   const fechaHoy = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(today);
+
+  useEffect(() => {
+    document.title = "Panel de Control - Kairós Admin";
+  }, []);
+
+  useEffect(() => {
+    if (isDoctorModalOpen) document.getElementById('modal-doctor-title')?.focus();
+    if (isAdminModalOpen) document.getElementById('modal-admin-title')?.focus();
+    if (isSpecialtyModalOpen) document.getElementById('modal-spec-title')?.focus();
+  }, [isDoctorModalOpen, isAdminModalOpen, isSpecialtyModalOpen]);
 
   useEffect(() => {
     const initData = async () => {
@@ -156,7 +163,7 @@ export const AdminHome = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto" tabIndex={-1}>
         
         <header className="px-4 md:px-8 py-4 md:py-6 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-10 gap-2">
           <div className="flex items-center gap-3">
@@ -236,7 +243,7 @@ export const AdminHome = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modal-doctor-title">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
-              <h3 id="modal-doctor-title" className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <h3 id="modal-doctor-title" className="text-lg font-bold text-slate-900 flex items-center gap-2" tabIndex={-1}>
                 <Stethoscope className="w-5 h-5 text-teal-600" aria-hidden="true"/> Registrar Médico
               </h3>
               <button onClick={() => setIsDoctorModalOpen(false)} aria-label="Cerrar ventana" className="p-1 text-slate-400 hover:text-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
@@ -296,7 +303,7 @@ export const AdminHome = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modal-admin-title">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
-              <h3 id="modal-admin-title" className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <h3 id="modal-admin-title" className="text-lg font-bold text-slate-900 flex items-center gap-2" tabIndex={-1}>
                 <Shield className="w-5 h-5 text-primary" aria-hidden="true"/> Registrar Administrador
               </h3>
               <button onClick={() => setIsAdminModalOpen(false)} aria-label="Cerrar ventana" className="p-1 text-slate-400 hover:text-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -335,7 +342,7 @@ export const AdminHome = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="modal-spec-title">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
-              <h3 id="modal-spec-title" className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <h3 id="modal-spec-title" className="text-lg font-bold text-slate-900 flex items-center gap-2" tabIndex={-1}>
                 <Tags className="w-5 h-5 text-purple-600" aria-hidden="true"/> Añadir Especialidad
               </h3>
               <button onClick={() => setIsSpecialtyModalOpen(false)} aria-label="Cerrar ventana" className="p-1 text-slate-400 hover:text-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">

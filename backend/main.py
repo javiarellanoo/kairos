@@ -143,7 +143,7 @@ def signup(usuario: PacienteCreate, db: Session = Depends(get_db), is_not_logged
     }
 
 @app.post("/api/signup-doctor")
-def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+async def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
     existing_user = db.query(Usuario).filter(Usuario.email == doctor.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
@@ -170,6 +170,9 @@ def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_u
         "nombre": new_user.name
     }
     access_token = create_access_token(data=token_data)
+    medico_jid = f"doctor_{new_user.email.split('@')[0].lower()}@localhost"
+    agente_doctor = DoctorAgent(medico_jid, "password123")
+    await agente_doctor.start(auto_register=True)
     
     return {
         "access_token": access_token, 

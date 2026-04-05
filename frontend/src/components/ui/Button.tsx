@@ -20,6 +20,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        aria-busy={isLoading}
         disabled={isLoading || props.disabled}
         className={cn(
           "inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all outline-none",

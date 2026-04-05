@@ -130,7 +130,7 @@ export const PacienteHome = () => {
         </div>
       </header>
 
-      <main className="relative flex-1 overflow-hidden bg-transparent px-4 pb-0 pt-24 sm:px-6 lg:px-8 flex flex-col">
+      <main className="relative flex-1 overflow-hidden bg-transparent px-4 pb-0 pt-24 sm:px-6 lg:px-8 flex flex-col" tabIndex={-1}>
         <div className="mx-auto max-w-3xl relative z-10 w-full flex flex-col h-full gap-6 sm:gap-8">
           
           <div className="shrink-0">

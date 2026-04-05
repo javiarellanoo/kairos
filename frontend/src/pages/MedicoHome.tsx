@@ -20,7 +20,6 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/client';
 import { cn } from '../utils/tw';
 
-// Tipos para el estado de la UI
 interface CitaMedico {
   id: number;
   paciente: string;
@@ -51,6 +50,10 @@ export const MedicoHome = () => {
       console.error('Error fetching citas:', error);
     }
   };
+
+    useEffect(() => {
+    document.title = "Panel Médico - Kairós MED";
+  }, []);
 
   useEffect(() => {
     getCitas();
@@ -123,7 +126,7 @@ export const MedicoHome = () => {
       </aside>
 
       {/* MAIN CONTENT (Columna Derecha) */}
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto" tabIndex={-1}>
         
         {/* Top Header */}
         <header className="px-4 md:px-8 py-4 md:py-6 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-10 gap-2">
