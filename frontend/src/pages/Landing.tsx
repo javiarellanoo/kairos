@@ -1,9 +1,21 @@
 import { Activity, Bell, CalendarDays, Cog } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export const Landing = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+  if (user) {
+    if (user.rol === 'paciente') {
+      navigate('/home');
+    } else if (user.rol === 'doctor') {
+      navigate('/medico/home');
+    } else if (user.rol === 'admin') {
+      navigate('/admin/home');
+    }
+  };
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-slate-50 font-sans selection:bg-blue-200">
