@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_searchable_field, EstadoVolante
+from models import Administrador, Cita, Paciente, Usuario, Volante, Doctor, Especialidad, hash_searchable_field, EstadoVolante
 from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
-from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate
+from schemas import DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, AdminCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate, EspecialidadCreate
 from spade.message import Message
 import json
 from spade.agent import Agent
@@ -177,6 +177,34 @@ def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), current_u
         "rol": new_user.rol
     }
 
+@app.post("/api/signup-admin")
+def signup_admin(admin: AdminCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    existing_user = db.query(Usuario).filter(Usuario.email == admin.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
+    hashed_password = get_password_hash(admin.password)
+    
+    new_user = Administrador(email=admin.email,
+                      password=hashed_password,
+                      rol="admin",
+                      name=admin.name,
+                      phone=admin.phone)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    token_data = {
+        "sub": new_user.email, 
+        "rol": new_user.rol,
+        "nombre": new_user.name
+    }
+    access_token = create_access_token(data=token_data)
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "rol": new_user.rol
+    }
+
 @app.post("/api/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db), is_not_logged_in: bool = Depends(is_not_logged_in)):
     
@@ -249,13 +277,32 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
     jid_paciente = f"patient_{current_user.email.split('@')[0].lower()}@localhost"
     agente_paciente = PatientAgent(jid_paciente, "password123")
     preferencias_horarias = db.query(Paciente).filter(Paciente.id == current_user.id).first().preferencias_horarias
+    citas_paciente = db.query(Cita).filter(Cita.paciente_id == current_user.id, Cita.estado.in_(["confirmada", "lista_espera"])).all()
+
+    intervalos_ocupados_paciente = []
+    for c in citas_paciente:
+        hora_str = c.fecha_hora or c.fecha_hora_propuesta
+        if hora_str:
+            doc = db.query(Doctor).filter(Doctor.id == c.medico_id).first()
+            duracion = doc.duracion_cita if doc else 30
+
+            hora_inicio = datetime.datetime.strptime(hora_str, "%Y-%m-%d %H:%M")
+            hora_fin = hora_inicio + timedelta(minutes=duracion)
+            intervalos_ocupados_paciente.append({"inicio": hora_inicio.strftime("%Y-%m-%d %H:%M"), "fin": hora_fin.strftime("%Y-%m-%d %H:%M")})
+            if c.estado == "pendiente_aceptacion":
+                hora_propuesta_inicio = datetime.datetime.strptime(c.fecha_hora_propuesta, "%Y-%m-%d %H:%M")
+                hora_propuesta_fin = hora_propuesta_inicio + timedelta(minutes=duracion)
+                intervalos_ocupados_paciente.append({"inicio": hora_propuesta_inicio.strftime("%Y-%m-%d %H:%M"), "fin": hora_propuesta_fin.strftime("%Y-%m-%d %H:%M")})
+
+
     agente_paciente.datos_busqueda = {
         "especialidad": solicitud.especialidad,
         "paciente_id": str(current_user.id),
         "preferencias_horarias": preferencias_horarias,
         "prioridad_subasta": prioridad_subasta,
         "lista_espera": solicitud.lista_espera,
-        "medicos_jids": medicos_jids
+        "medicos_jids": medicos_jids,
+        "intervalos_ocupados_paciente": intervalos_ocupados_paciente
 
     }
 
@@ -700,3 +747,19 @@ def get_especialidades_doctor(db: Session = Depends(get_db), current_user: Usuar
     if current_user.especialidad not in ["Medicina General", "Pediatría"]:
         especialidades = [esp for esp in especialidades if esp.name == current_user.especialidad]
     return [{ "nombre": esp.name} for esp in especialidades]
+
+@app.post("/api/especialidades")
+def crear_especialidad(nueva_especialidad: EspecialidadCreate, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    existing_especialidad = db.query(Especialidad).filter(Especialidad.name == nueva_especialidad.name).first()
+    if existing_especialidad:
+        raise HTTPException(status_code=400, detail="La especialidad ya existe")
+    especialidad = Especialidad(name=nueva_especialidad.name)
+    db.add(especialidad)
+    db.commit()
+    db.refresh(especialidad)
+    return {"mensaje": "Especialidad creada exitosamente", "especialidad": {"nombre": especialidad.name}}
+
+@app.get("/api/admin/especialidades")
+def listar_especialidades(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_admin)):
+    especialidades = db.query(Especialidad).all()
+    return [{"nombre": esp.name} for esp in especialidades]

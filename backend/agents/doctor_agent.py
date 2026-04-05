@@ -79,6 +79,7 @@ class DoctorAgent(Agent):
                                 or_(Cita.fecha_hora.in_(posibles_huecos), Cita.fecha_hora_propuesta.in_(posibles_huecos))).all()
                             
                             huecos_ocupados = set()
+
                             for cita in citas_bloqueantes:
                                 if cita.fecha_hora in posibles_huecos and cita.estado != "pendiente_aceptacion":
                                     huecos_ocupados.add(cita.fecha_hora)
@@ -88,8 +89,31 @@ class DoctorAgent(Agent):
 
                                 if cita.fecha_hora in posibles_huecos and cita.estado == "pendiente_aceptacion":
                                     huecos_ocupados.add(cita.fecha_hora)
+                            
+                            intervalos_ocupados_paciente = datos_peticion.get("intervalos_ocupados_paciente", [])
+                            intervalos_paciente = []
+                            
+                            for intervalo in intervalos_ocupados_paciente:
+                                p_inicio = datetime.strptime(intervalo["inicio"], "%Y-%m-%d %H:%M")
+                                p_fin = datetime.strptime(intervalo["fin"], "%Y-%m-%d %H:%M")
+                                intervalos_paciente.append((p_inicio, p_fin))
 
-                            huecos_libres = [h for h in posibles_huecos if h not in huecos_ocupados and h not in self.agent.huecos_bloqueados]
+                            huecos_libres = []
+                            for h in posibles_huecos:
+                                if h in huecos_ocupados or h in self.agent.huecos_bloqueados:
+                                    continue
+
+                                doc_inicio = datetime.strptime(h, "%Y-%m-%d %H:%M")
+                                doc_fin = doc_inicio + timedelta(minutes=doctor.duracion_cita)
+
+                                solapa_con_paciente = False
+                                for p_inicio, p_fin in intervalos_paciente:
+                                    if (doc_inicio < p_fin and doc_fin > p_inicio):
+                                        solapa_con_paciente = True
+                                        break
+
+                                if not solapa_con_paciente:
+                                    huecos_libres.append(h)               
 
                             for hueco in huecos_libres:
                                 dia_semana = DIA_SEMANA[datetime.strptime(hueco, "%Y-%m-%d %H:%M").weekday()]

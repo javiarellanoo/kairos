@@ -75,6 +75,13 @@ class DoctorCreate(BaseModel):
     especialidad: str
     consulta: Optional[str] = None
 
+class AdminCreate(BaseModel):
+    email: str
+    name: str
+    password: str
+    phone: str
+    
+
 class UrgenciaVolante(str, Enum):
     BAJA = "Volante - Derivación Baja"
     MEDIA = "Volante - Derivación Media"
@@ -108,4 +115,8 @@ class EstadoCitaUpdate(BaseModel):
 
 class DecisionAdelanto(BaseModel):
     decision: str
+
+class EspecialidadCreate(BaseModel):
+    name: str
+
     

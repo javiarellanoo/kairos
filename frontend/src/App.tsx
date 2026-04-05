@@ -16,6 +16,7 @@ import { AbrirAgenda } from './pages/AbrirAgenda'
 import { PerfilMedico } from './pages/PerfilMedico'
 import { CitasMedico } from './pages/CitasMedico'
 import { DetallesCitaMedico } from './pages/DetallesCitaMedico'
+import { AdminHome } from './pages/AdminHome'
 
 
  function App() {
@@ -79,7 +80,12 @@ import { DetallesCitaMedico } from './pages/DetallesCitaMedico'
             <DetallesCitaMedico />
           </ProtectedRoute>
         } />
-      </Routes>
+      <Route path= "/admin/home" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminHome />
+          </ProtectedRoute>
+        } />
+    </Routes>
     </BrowserRouter>
     </AuthProvider>
   );

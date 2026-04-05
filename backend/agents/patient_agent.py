@@ -18,6 +18,7 @@ class PatientAgent(Agent):
             preferencias_horarias = self.agent.datos_busqueda.get("preferencias_horarias")
             prioridad_subasta = self.agent.datos_busqueda.get("prioridad_subasta", 1.0)
             lista_espera = self.agent.datos_busqueda.get("lista_espera", False)
+            intervalos_ocupados_paciente = self.agent.datos_busqueda.get("intervalos_ocupados_paciente", [])
 
             medicos_jids = self.agent.datos_busqueda.get("medicos_jids", [])
             if not medicos_jids:
@@ -28,6 +29,8 @@ class PatientAgent(Agent):
             contenido_cfp = {
                 "prioridad": prioridad_subasta,
                 "preferencias_horarias": preferencias_horarias,
+                "intervalos_ocupados_paciente": intervalos_ocupados_paciente
+                
             }
 
             for jid_medico in medicos_jids:
