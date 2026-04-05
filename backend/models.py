@@ -129,7 +129,7 @@ class Administrador(Usuario):
 
 class Volante(Base):
     __tablename__ = "volantes"
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     paciente_id = Column(UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False)
     medico_emisor_id = Column(UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=False)
     especialidad_destino = Column(String, ForeignKey("especialidades.name"), nullable=False)

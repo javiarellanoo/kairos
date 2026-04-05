@@ -296,7 +296,7 @@ async def nueva_cita(solicitud: SolicitudCita, db: Session = Depends(get_db), cu
             await enviar_mensaje_xmpp(msg_confirmacion)
         except Exception as e:
             print(f"Error al enviar mensaje de confirmación al agente doctor: {e}")
-            
+
         return nueva_cita
     else:
         raise HTTPException(status_code=404, detail="No se pudo encontrar una cita disponible para los criterios proporcionados.")
@@ -388,7 +388,21 @@ def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get
 async def agenda_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
     doctor = db.query(Doctor).filter(Doctor.email.like(f"{current_user.email}%")).first()
     citas = db.query(Cita).filter(Cita.medico_id == doctor.id, Cita.estado != "cancelada").all()
-    return citas;
+    info_citas = []
+    for cita in citas:
+        paciente = db.query(Paciente).filter(Paciente.id == cita.paciente_id).first()
+        estado_medico = cita.estado
+        if cita.estado == "lista_espera" or cita.estado == "pendiente_aceptacion":
+            estado_medico = "confirmada"
+        info_citas.append({
+            "id": cita.id,
+            "fecha_hora": cita.fecha_hora,
+            "especialidad": cita.especialidad,
+            "motivo": cita.motivo,
+            "estado": estado_medico,
+            "paciente": paciente.name
+        })
+    return info_citas;
 
 @app.get("/api/agenda-hoy")
 async def agenda_hoy(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
@@ -509,9 +523,12 @@ def crear_volante(cita_id: int, volante_info: VolanteCreate, db: Session = Depen
     if volante_info.especialidad_destino in ["Medicina General", "Pediatría"]:
         raise HTTPException(status_code=400, detail="No se pueden crear volantes para especialidades primarias.")
     
-    fecha_cita = datetime.datetime.strptime(cita.fecha_hora, "%Y-%m-%dT%H:%M:%S").date()
+    fecha_cita = datetime.datetime.strptime(cita.fecha_hora, "%Y-%m-%d %H:%M").date()
     if get_today() != fecha_cita:
         raise HTTPException(status_code=400, detail="No puedes crear volantes para citas de días futuros o pasados.")
+    
+    if cita.estado == "cancelada" or cita.estado == "pendiente_aceptacion" or cita.estado == "no_asistida":
+        raise HTTPException(status_code=400, detail="No se pueden crear volantes para citas que no han sido confirmadas o que no hayan sido atendidas.")
     
     nuevo_volante = Volante(
         paciente_id=cita.paciente_id,
@@ -638,10 +655,16 @@ def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario 
     cita = db.query(Cita).filter(Cita.id == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
-    if cita.paciente_id != current_user.id:
+    if cita.paciente_id != current_user.id and cita.medico_id != current_user.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta cita")
     
     doctor = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
+    paciente = db.query(Paciente).filter(Paciente.id == cita.paciente_id).first()
+    observaciones_volante = None
+    if cita.id_volante:
+        volante = db.query(Volante).filter(Volante.id == cita.id_volante).first()
+        if volante and volante.observaciones:
+            observaciones_volante = volante.observaciones
     info_cita = {
         "id": cita.id,
         "fecha_hora": cita.fecha_hora,
@@ -649,7 +672,9 @@ def get_cita(cita_id: int, db: Session = Depends(get_db), current_user: Usuario 
         "motivo": cita.motivo,
         "estado": cita.estado,
         "medico": doctor.name,
-        "consulta": doctor.consulta
+        "consulta": doctor.consulta,
+        "paciente": paciente.name,
+        "observaciones_volante": observaciones_volante
     }
     return info_cita
 
@@ -668,3 +693,8 @@ def get_especialidades(db: Session = Depends(get_db), current_user: Usuario = De
 def get_volantes_por_especialidad(especialidad: str, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
     volantes = db.query(Volante).filter(Volante.paciente_id == current_user.id, Volante.estado == "pendiente", Volante.especialidad_destino == especialidad).all()
     return [{ "id": vol.id, "motivo": vol.motivo_texto } for vol in volantes]
+
+@app.get("/api/doctors/especialidades")
+def get_especialidades_doctor(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    especialidades = db.query(Especialidad).filter(Especialidad.name != "Medicina General", Especialidad.name != "Pediatría").all()
+    return [{ "nombre": esp.name} for esp in especialidades]

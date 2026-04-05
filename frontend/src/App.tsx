@@ -14,6 +14,9 @@ import { PerfilPaciente } from './pages/PerfilPaciente'
 import { MedicoHome } from './pages/MedicoHome'
 import { AbrirAgenda } from './pages/AbrirAgenda'
 import { PerfilMedico } from './pages/PerfilMedico'
+import { CitasMedico } from './pages/CitasMedico'
+import { DetallesCitaMedico } from './pages/DetallesCitaMedico'
+
 
  function App() {
   return (
@@ -62,6 +65,18 @@ import { PerfilMedico } from './pages/PerfilMedico'
           <Route path="/medico/perfil" element={
           <ProtectedRoute allowedRoles={['doctor']}>
             <PerfilMedico />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/medico/citas" element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <CitasMedico />
+          </ProtectedRoute>
+        } />
+
+        <Route path= "/medico/citas/:id_cita" element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DetallesCitaMedico />
           </ProtectedRoute>
         } />
       </Routes>

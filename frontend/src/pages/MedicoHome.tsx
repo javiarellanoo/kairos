@@ -100,13 +100,13 @@ export const MedicoHome = () => {
         {/* Navegación */}
         <nav className="flex-1 px-4 py-6 space-y-2">
           <button className="w-full flex items-center gap-3 px-4 py-3 bg-teal-500/10 text-teal-400 rounded-xl font-medium transition-colors">
-            <CalendarDays className="w-5 h-5" /> Mi Agenda
+            <CalendarDays className="w-5 h-5" /> Resumen Diario
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors">
-            <History className="w-5 h-5" /> Historial
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/citas'); }}>
+            <History className="w-5 h-5" /> Agenda Completa
           </button>
           <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/perfil'); }}>
-            <Settings className="w-5 h-5" /> Ajustes
+            <Settings className="w-5 h-5" /> Mi Perfil
 
           </button>
         </nav>
@@ -224,8 +224,14 @@ export const MedicoHome = () => {
                       "w-full sm:flex-1 p-3 sm:p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all",
                       isBuscando 
                         ? "bg-amber-50 border-amber-200 shadow-sm shadow-amber-900/5" 
-                        : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-md"
-                    )}>
+                        : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-md cursor-pointer"
+                    )} 
+                    onClick={() => !isBuscando && navigate(`/medico/citas/${cita.id}`)} 
+                    onKeyDown={(e) => { if (!isBuscando && e.key === 'Enter') navigate(`/medico/citas/${cita.id}`); }} 
+                    tabIndex={!isBuscando ? 0 : undefined} 
+                    role={!isBuscando ? "button" : undefined} 
+                    aria-label={!isBuscando ? `Ver detalles de la cita con ${cita.paciente} a las ${cita.hora}` : undefined}
+                    >
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <span className={cn(
@@ -242,9 +248,14 @@ export const MedicoHome = () => {
                             )}
                           </span>
                           
-                          {!isBuscando && (
+                          {!isBuscando && cita.estado === 'confirmada' && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
                               <CheckCircle2 className="w-3 h-3" /> Confirmada
+                            </span>
+                          )}
+                          {!isBuscando && cita.estado === 'no_asistida' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                              <AlertCircle className="w-3 h-3" /> No Asistida
                             </span>
                           )}
                         </div>
