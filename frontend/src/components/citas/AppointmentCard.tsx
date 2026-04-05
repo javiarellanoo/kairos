@@ -36,7 +36,7 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({ appointment })
   const isWaiting = appointment.estado === 'lista_espera';
   const isCancelled = appointment.estado === 'cancelada';
   return (
-    <div className="flex items-center gap-3 sm:gap-4 rounded-4xl border-2 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0 hover:-translate-y-1 transition-transform focus:ring-2 focus:ring-primary cursor-pointer" 
+    <div className="flex items-center gap-3 sm:gap-4 rounded-2xl border-2 border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-shadow shrink-0 hover:-translate-y-1 transition-transform focus:ring-2 focus:ring-primary cursor-pointer" 
     onClick={seeDetails}
     onKeyDown={handleKeyDown}
       role="button"

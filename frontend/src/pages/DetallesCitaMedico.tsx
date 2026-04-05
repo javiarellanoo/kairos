@@ -174,13 +174,13 @@ export const DetallesCitaMedico = () => {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <button onClick={() => navigate('/medico/home')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/home'); }}>
+          <button onClick={() => navigate('/medico/home')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors">
             <CalendarDays className="w-5 h-5" /> Resumen Diario
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/citas'); }}>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')}>
             <History className="w-5 h-5" /> Agenda Completa
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/perfil'); }}>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')}>
             <Settings className="w-5 h-5" /> Mi Perfil
           </button>
         </nav>

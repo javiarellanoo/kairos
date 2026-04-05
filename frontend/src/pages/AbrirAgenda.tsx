@@ -343,6 +343,7 @@ const formatearFecha = (fecha: Date) => {
                           <input 
                             type="time" 
                             required
+                            aria-label= {`Hora de inicio del turno ${indexTurno + 1}`}
                             value={turno.inicio}
                             onChange={(e) => updateTurno(indexTurno, 'inicio', e.target.value)}
                             className="w-full bg-white px-2 py-1.5 rounded-md border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
@@ -351,6 +352,7 @@ const formatearFecha = (fecha: Date) => {
                           <input 
                             type="time" 
                             required
+                            aria-label= {`Hora de fin del turno ${indexTurno + 1}`}
                             value={turno.fin}
                             onChange={(e) => updateTurno(indexTurno, 'fin', e.target.value)}
                             className="w-full bg-white px-2 py-1.5 rounded-md border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none text-sm"

@@ -144,13 +144,13 @@ export const CitasMedico = () => {
 
         {/* Navegación */}
         <nav className="flex-1 px-4 py-6 space-y-2">
-          <button onClick={() => navigate('/medico/home')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/home'); }}>
+          <button onClick={() => navigate('/medico/home')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors">
             <CalendarDays className="w-5 h-5" /> Resumen Diario
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-teal-500/10 text-teal-400 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/citas'); }}>
+          <button className="w-full flex items-center gap-3 px-4 py-3 bg-teal-500/10 text-teal-400 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/citas')}>
             <History className="w-5 h-5" /> Agenda Completa
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')} onKeyDown={(e) => { if (e.key === 'Enter') navigate('/medico/perfil'); }}>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl font-medium transition-colors" onClick={() => navigate('/medico/perfil')}>
             <Settings className="w-5 h-5" /> Mi Perfil
           </button>
         </nav>
@@ -294,8 +294,10 @@ export const CitasMedico = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {citasFiltradas.map((cita) => (
               <article 
+                role= "button"
+                aria-label={`Ver detalles de la cita con ${cita.paciente} el ${formatearFechaHora(cita.fecha_hora)}`}
                 key={cita.id} 
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow focus-within:ring-2 focus-within:ring-teal-500 focus-within:ring-offset-2 outline-none group" onClick={() => navigate(`/medico/citas/${cita.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/medico/citas/${cita.id}`); }}
+                className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow focus-within:ring-2 focus-within:ring-teal-500 focus-within:ring-offset-2 outline-none group" onClick={() => navigate(`/medico/citas/${cita.id}`)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/medico/citas/${cita.id}`); }}
                 tabIndex={0}
               >
                 {/* Cabecera Tarjeta: Fecha y Estado */}
