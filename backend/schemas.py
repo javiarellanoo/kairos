@@ -159,3 +159,6 @@ class AdminDoctorUpdate(BaseModel):
     phone: Optional[str] = None
     duracion_cita: Optional[int] = None
     consulta: Optional[str] = None
+
+class EmailBody(BaseModel):
+    message: str

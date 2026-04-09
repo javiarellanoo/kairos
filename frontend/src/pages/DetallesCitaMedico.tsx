@@ -96,14 +96,17 @@ export const DetallesCitaMedico = () => {
   };
 
   const enviarRecordatorio = (e: React.FormEvent) => {
-    e.preventDefault();
-    setAccionLoading('recordatorio');
-    setTimeout(() => {
-      alert("Recordatorio enviado con éxito al agente del paciente.");
-      setAccionLoading(null);
+    try {
+      e.preventDefault();
+      setAccionLoading('recordatorio');
+      apiClient.post(`/doctor/enviar-recordatorio/${id_cita}`, { message: notaRecordatorio });
       setIsRecordatorioModalOpen(false);
-      setNotaRecordatorio('');
-    }, 1000);
+      alert("Recordatorio enviado al paciente correctamente.");
+    } catch (err) {
+      alert("Error al enviar el recordatorio.");
+    } finally {    
+      setAccionLoading(null);
+    }
   };
 
   const generarVolante = async (e: React.FormEvent) => {

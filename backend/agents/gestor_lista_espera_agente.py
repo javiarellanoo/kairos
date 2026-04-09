@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime
 from spade.agent import Agent
@@ -8,6 +9,7 @@ from agents import PatientAgent
 from dependencies import get_today
 from database import SessionLocal
 from models import Cita, Doctor, Paciente
+from emails import enviar_email_adelanto_async
 
 dias_semana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
 
@@ -116,6 +118,7 @@ class GestorListaEsperaAgente(Agent):
                 db_session.commit()
 
                 await self.send(msg_propuesta)
+                await asyncio.create_task(enviar_email_adelanto_async(paciente_email, db_session.query(Paciente).filter(Paciente.id == paciente_id).first().name, fecha_hora, candidato.especialidad))
                 
                 respuesta = await self.receive(timeout=tiempo_espera)
 

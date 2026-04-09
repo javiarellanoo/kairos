@@ -1,4 +1,5 @@
 import datetime
+import asyncio
 from typing import Optional, Dict, List
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -12,13 +13,14 @@ from security import get_password_hash, verify_password, create_access_token
 from dependencies import get_current_user, get_is_admin, get_is_doctor, get_is_paciente, get_today, is_not_logged_in
 from pydantic import BaseModel
 from agents import PatientAgent, DoctorAgent, GestorListaEsperaAgente
-from schemas import AdminDoctorUpdate, AdminPacienteUpdate, DecisionAdelanto, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, AdminCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate, EspecialidadCreate
+from schemas import AdminDoctorUpdate, AdminPacienteUpdate, DecisionAdelanto, EmailBody, PacienteUpdate, SolicitudCita, MotivoPrimaria, PacienteCreate, DoctorCreate, AdminCreate, VolanteCreate, UrgenciaVolante, DoctorUpdate, EstadoCitaUpdate, EspecialidadCreate
 from spade.message import Message
 import json
 from spade.agent import Agent
 from spade.behaviour import OneShotBehaviour
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import timedelta
+from emails import enviar_email_notas_doctor
 
 medicos_activos = {}
 PESOS_VOLANTES = {
@@ -422,7 +424,7 @@ def obtener_citas_adelantos(db: Session = Depends(get_db), current_user: Usuario
 
 @app.get("/api/mis-citas")
 def mis_citas(db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_paciente)):
-    citas = db.query(Cita).filter(Cita.paciente_id == current_user.id, Cita.estado != "cancelada", Cita.estado != "pendiente_aceptacion").all()
+    citas = db.query(Cita).filter(Cita.paciente_id == current_user.id, Cita.estado != "cancelada").all()
     info_citas = []
     for cita in citas:
         medico = db.query(Doctor).filter(Doctor.id == cita.medico_id).first()
@@ -912,3 +914,17 @@ def reasignar_medico_cabecera(db: Session, doctor_id_a_reasignar: str):
     medico_menos_pacientes = min(medicos_cabecera_disponibles, key=lambda doc: db.query(Paciente).filter(Paciente.medico_de_cabecera_id == doc.id).count())
     
     return medico_menos_pacientes.id
+
+@app.post("/api/doctor/enviar-recordatorio/{cita_id}")
+async def enviar_recordatorio_doctor(cita_id: str, email_body: EmailBody, db: Session = Depends(get_db), current_user: Usuario = Depends(get_is_doctor)):
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    
+    if cita.medico_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para enviar un recordatorio para esta cita")
+
+    destinatario_correo = db.query(Usuario).filter(Usuario.id == cita.paciente_id).first().email
+    await asyncio.create_task(enviar_email_notas_doctor(destinatario_correo, current_user.name, email_body.message))
+
+    return {"message": "Recordatorio enviado al doctor"}

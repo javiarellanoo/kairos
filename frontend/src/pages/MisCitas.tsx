@@ -53,7 +53,6 @@ export const MisCitas = () => {
           </div>
 
           <div className="relative flex items-center gap-2 sm:gap-3 shrink-0">
-            <LucideBellDot className="h-5 w-5 text-slate-600" />
             <Button 
               variant="options"
               onClick={() => handleOpenMenu()}
