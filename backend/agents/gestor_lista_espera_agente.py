@@ -68,7 +68,7 @@ class GestorListaEsperaAgente(Agent):
             candidatos = query_candidatos.order_by(
                 Cita.fecha_hora.isnot(None).asc(),
                 desc(Cita.prioridad_peso),
-                asc(Cita.fecha_hora)
+                desc(Cita.fecha_hora)
             ).with_for_update(skip_locked=True).all()
 
             if not candidatos:
