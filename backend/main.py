@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI):
     for jid, agente in medicos_activos.items():
         await agente.stop()
         print(f"Agente {jid} detenido al apagar el servidor.")
+    medicos_activos.clear()
     print("Servidor apagado y agentes detenidos.")
 Base.metadata.create_all(bind=engine)
 
@@ -177,7 +178,8 @@ async def signup_doctor(doctor: DoctorCreate, db: Session = Depends(get_db), cur
     access_token = create_access_token(data=token_data)
     medico_jid = f"doctor_{new_user.email.split('@')[0].lower()}@localhost"
     agente_doctor = DoctorAgent(medico_jid, "password123")
-    await agente_doctor.start(auto_register=True)
+    asyncio.create_task(agente_doctor.start(auto_register=True))
+    medicos_activos[medico_jid] = agente_doctor
     
     return {
         "access_token": access_token, 
@@ -457,6 +459,7 @@ async def agenda_doctor(db: Session = Depends(get_db), current_user: Usuario = D
             "estado": estado_medico,
             "paciente": paciente.name
         })
+    info_citas.sort(key=lambda x: x["fecha_hora"])
     return info_citas;
 
 @app.get("/api/agenda-hoy")

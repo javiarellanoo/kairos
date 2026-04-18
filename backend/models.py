@@ -35,7 +35,6 @@ ENCRYPTION_KEY = _get_encryption_key()
 def hash_searchable_field(value: str) -> str:
     if value is None:
         return None
-    # Usamos HMAC-like logic o un salt con la clave de encriptación para evitar diccionarios/rainbow tables
     return hashlib.sha256((value + ENCRYPTION_KEY).encode("utf-8")).hexdigest()
 
 Base = declarative_base()

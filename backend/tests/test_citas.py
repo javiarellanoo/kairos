@@ -266,7 +266,7 @@ async def test_detalles_cita_de_otro_paciente(client):
     response = await client.get("/api/citas/297", headers=headers)
     assert response.status_code == 403
 
-async def create_test_cita(db_session, doctor_email, paciente_email, fecha_hora="2026-02-23T10:00:00", estado="confirmada"):
+async def create_test_cita(db_session, doctor_email, paciente_email, fecha_hora="2026-02-23 10:00", estado="confirmada"):
     medico = db_session.query(Doctor).filter(Doctor.email == doctor_email).first()
     paciente = db_session.query(Paciente).filter(Paciente.email == paciente_email).first()
     cita = Cita(
@@ -289,21 +289,21 @@ async def test_obtener_citas_adelantos_filtra_por_paciente_y_estado(client, db_s
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-10T10:00:00",
+        fecha_hora="2026-05-10 10:00",
         estado="pendiente_aceptacion",
     )
     cita_confirmada_paciente_1 = await create_test_cita(
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-11T10:00:00",
+        fecha_hora="2026-05-11 10:00",
         estado="confirmada",
     )
     cita_pendiente_paciente_2 = await create_test_cita(
         db_session,
         DOCTOR_1["username"],
         PATIENT_2["username"],
-        fecha_hora="2026-05-12T10:00:00",
+        fecha_hora="2026-05-12 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -325,7 +325,7 @@ async def test_adelantar_cita_aceptar_exitoso(client, db_session, monkeypatch):
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-13T10:00:00",
+        fecha_hora="2026-05-13 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -351,7 +351,7 @@ async def test_adelantar_cita_rechazar_exitoso(client, db_session, monkeypatch):
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-14T10:00:00",
+        fecha_hora="2026-05-14 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -377,7 +377,7 @@ async def test_adelantar_cita_decision_invalida(client, db_session):
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-15T10:00:00",
+        fecha_hora="2026-05-15 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -411,7 +411,7 @@ async def test_adelantar_cita_de_otro_paciente(client, db_session):
         db_session,
         DOCTOR_1["username"],
         PATIENT_2["username"],
-        fecha_hora="2026-05-16T10:00:00",
+        fecha_hora="2026-05-16 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -432,7 +432,7 @@ async def test_adelantar_cita_con_estado_no_pendiente(client, db_session):
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-17T10:00:00",
+        fecha_hora="2026-05-17 10:00",
         estado="confirmada",
     )
 
@@ -453,7 +453,7 @@ async def test_adelantar_cita_error_al_enviar_mensaje(client, db_session, monkey
         db_session,
         DOCTOR_1["username"],
         PATIENT_1["username"],
-        fecha_hora="2026-05-18T10:00:00",
+        fecha_hora="2026-05-18 10:00",
         estado="pendiente_aceptacion",
     )
 
@@ -541,7 +541,7 @@ async def test_crear_volante_hacia_primaria(client, db_session):
 
 @pytest.mark.asyncio
 async def test_crear_volante_dias_pasados_o_futuros(client, db_session):
-    cita = await create_test_cita(db_session, DOCTOR_PEDIATRA["username"], PATIENT_1["username"], fecha_hora="2026-02-24T10:00:00")
+    cita = await create_test_cita(db_session, DOCTOR_PEDIATRA["username"], PATIENT_1["username"], fecha_hora="2026-02-24 10:00")
     headers = await get_auth_headers(client, DOCTOR_PEDIATRA)
     response = await client.post(f"/api/volantes/{cita.id}", json={
         "especialidad_destino": "Cardiología",
