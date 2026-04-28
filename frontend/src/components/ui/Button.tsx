@@ -9,7 +9,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', isLoading, children, ...props }, ref) => {
     const variants = {
-      primary: "bg-[var(--color-primary)] text-white hover:brightness-95 shadow-sm",
+      primary: "bg-[var(--color-accent)] text-white hover:brightness-95 shadow-sm",
       outline: "border-2 border-slate-200 bg-transparent text-slate-700 hover:border-slate-300 hover:bg-slate-50",
       ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
       dark: "bg-[var(--color-accent)] text-white hover:brightness-95 shadow-sm",
