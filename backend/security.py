@@ -3,7 +3,6 @@ from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
 
-# Use a pure-Python hash to avoid native bcrypt backend issues on Windows.
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 

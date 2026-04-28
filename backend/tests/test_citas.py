@@ -204,6 +204,41 @@ async def test_cita_con_especialidad_invalida(client):
     assert response.status_code == 400
 
 @pytest.mark.asyncio
+async def test_get_citas_adelantos(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/citas/adelantos", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
+async def test_mis_citas(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/mis-citas", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
+async def test_agenda_doctor(client):
+    headers = await get_auth_headers(client, DOCTOR_1)
+    response = await client.get("/api/agenda-doctor", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
+async def test_agenda_hoy(client):
+    headers = await get_auth_headers(client, DOCTOR_1)
+    response = await client.get("/api/agenda-hoy", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
+async def test_obtener_citas_proximas(client):
+    headers = await get_auth_headers(client, PATIENT_1)
+    response = await client.get("/api/citas/proximas", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
 async def test_cancelar_cita(client, db_session):
     headers = await get_auth_headers(client, PATIENT_1)
     response = await client.patch("/api/cancelar-cita/296", headers=headers)

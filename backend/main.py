@@ -844,16 +844,20 @@ def actualizar_info_paciente_admin(usuario_id: str, updated_info: AdminPacienteU
     if usuario_correo_existente:
         raise HTTPException(status_code=400, detail="El email ya está registrado por otro usuario")
     
-    if updated_info.birth_date and updated_info.birth_date > get_today():
+    if updated_info.birth_date and updated_info.birth_date > get_today().strftime("%Y-%m-%d"):
         raise HTTPException(status_code=400, detail="La fecha de nacimiento no puede ser en el futuro")
     
-    usuario_dni_existente = db.query(Usuario).filter(Usuario.dni == updated_info.dni, Usuario.id != usuario_id).first()
-    if usuario_dni_existente:
-        raise HTTPException(status_code=400, detail="El DNI ya está registrado por otro usuario")
+    if updated_info.dni:
+        dni_hash = hash_searchable_field(updated_info.dni)
+        usuario_dni_existente = db.query(Paciente).filter(Paciente.dni_hash == dni_hash, Paciente.id != usuario_id).first()
+        if usuario_dni_existente:
+            raise HTTPException(status_code=400, detail="El DNI ya está registrado por otro paciente")
     
-    usuario_tarjeta_existente = db.query(Usuario).filter(Usuario.tarjeta_sanitaria == updated_info.tarjeta_sanitaria, Usuario.id != usuario_id).first()
-    if usuario_tarjeta_existente:
-        raise HTTPException(status_code=400, detail="El número de tarjeta sanitaria ya está registrado por otro usuario")
+    if updated_info.tarjeta_sanitaria:
+        tarjeta_hash = hash_searchable_field(updated_info.tarjeta_sanitaria)
+        usuario_tarjeta_existente = db.query(Paciente).filter(Paciente.tarjeta_sanitaria_hash == tarjeta_hash, Paciente.id != usuario_id).first()
+        if usuario_tarjeta_existente:
+            raise HTTPException(status_code=400, detail="La tarjeta sanitaria ya está registrada por otro paciente")
     
     update_data = updated_info.model_dump(exclude_unset=True)
     for key, value in update_data.items():
