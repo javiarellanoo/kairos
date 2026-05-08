@@ -104,11 +104,6 @@ export const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              <div className="flex items-center justify-end mt-2">
-                <a href="#" className="text-sm font-medium text-primary hover:text-cyan-500">
-                  ¿Has olvidado tu contraseña?
-                </a>
-              </div>
             </div>
 
             <Button 
