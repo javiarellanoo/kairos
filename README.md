@@ -66,15 +66,13 @@ Para que los agentes inteligentes (SPADE) puedan comunicarse y registrarse autom
 
 3- Idioma: Selecciona tu preferencia.
 
-4- Ajustes del Servidor: En el campo Dominio, asegúrate de poner ```localhost```
+4- Ajustes del Servidor: En el campo dominio asegúrate de poner ```localhost``` y selecciona AES como método de cifrado.
 
-5- Selecciona AES como estándar de cifrado
+5- Base de datos: Selecciona la base de datos interna incrustada (Embedded Database) para simplificar el proceso.
 
-6- Base de datos: Selecciona la base de datos interna incrustada (Embedded Database) para simplificar el proceso.
+6- Configuración de Perfil / Administrador: Crea una contraseña para el usuario admin.
 
-7- Configuración de Perfil / Administrador: Crea una contraseña para el usuario admin.
-
-8- Habilitar el Auto-Registro (Crucial):
+7- Habilitar el Auto-Registro (Crucial):
 
 - Inicia sesión en el panel con el usuario admin y la contraseña que acabas de crear.
 
