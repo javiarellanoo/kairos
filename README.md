@@ -84,7 +84,6 @@ Para que los agentes inteligentes (SPADE) puedan comunicarse y registrarse autom
 
 1- En la raíz del proyecto, crea un entorno virtual
 ```bash
-cd backend
 python -m venv venv
 ```
 
